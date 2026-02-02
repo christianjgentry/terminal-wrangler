@@ -1,0 +1,24 @@
+project:
+  name: "Terminal Wrangler"
+  description: "Development services for Terminal Wrangler"
+
+services:
+  dev:
+    name: "Dev Server"
+    command: "npm run dev"
+    workingDirectory: "."
+    docs: |
+      ## Electron + Vite Dev Server
+      Runs `electron-vite dev` which starts:
+      - Vite dev server for the renderer (React)
+      - Electron main process with hot reload
+    tags: [electron, vite]
+
+  typecheck:
+    name: "Type Check (Watch)"
+    command: "npx tsc --noEmit --watch"
+    workingDirectory: "."
+    docs: |
+      ## TypeScript Watch
+      Runs the TypeScript compiler in watch mode to catch type errors.
+    tags: [typescript]

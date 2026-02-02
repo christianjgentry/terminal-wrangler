@@ -1,0 +1,54 @@
+project:
+  name: "Sample Project"
+  description: "A sample project for testing Terminal Wrangler"
+
+services:
+  database:
+    name: "PostgreSQL"
+    command: "echo 'Starting PostgreSQL...' && sleep 2 && echo 'PostgreSQL ready on port 5432' && while true; do sleep 60; done"
+    workingDirectory: "."
+    docs: |
+      ## PostgreSQL Database
+      Runs on port **5432**. Uses Docker.
+    healthCheck:
+      command: "echo healthy"
+      interval: 5000
+      retries: 3
+      startDelay: 2000
+    env:
+      POSTGRES_PASSWORD: "dev"
+    tags: [database, docker]
+
+  redis:
+    name: "Redis"
+    command: "echo 'Starting Redis...' && sleep 1 && echo 'Redis ready on port 6379' && while true; do sleep 60; done"
+    workingDirectory: "."
+    docs: |
+      ## Redis Cache
+      In-memory cache on port **6379**
+    tags: [cache, docker]
+
+  api:
+    name: "API Server"
+    command: "echo 'Starting API server...' && sleep 1 && echo 'API listening on http://localhost:3001' && while true; do sleep 60; done"
+    workingDirectory: "."
+    dependsOn: [database, redis]
+    docs: |
+      ## API Server
+      Express.js API running on port **3001**.
+      Connects to PostgreSQL and Redis.
+    env:
+      DATABASE_URL: "postgresql://postgres:dev@localhost:5432/myapp"
+      REDIS_URL: "redis://localhost:6379"
+    tags: [backend, node]
+
+  frontend:
+    name: "Frontend Dev Server"
+    command: "echo 'Starting Vite dev server...' && sleep 1 && echo 'Frontend at http://localhost:5173' && while true; do sleep 60; done"
+    workingDirectory: "."
+    dependsOn: [api]
+    docs: |
+      ## Frontend
+      React + Vite dev server on port **5173**.
+      Proxies API calls to the API server.
+    tags: [frontend, react]
