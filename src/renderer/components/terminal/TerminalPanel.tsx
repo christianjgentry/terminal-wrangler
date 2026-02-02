@@ -1,8 +1,10 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { useServiceStore } from '../../stores/service-store'
+import { useDocsStore } from '../../stores/docs-store'
 import { StatusBadge } from '../shared/StatusBadge'
 import { TerminalView } from './TerminalView'
+import { AdhocTerminalView } from './AdhocTerminalView'
 
 interface TerminalPanelProps {
   height: number
@@ -15,6 +17,14 @@ export function TerminalPanel({ height }: TerminalPanelProps): JSX.Element {
   const setTerminalPanelHeight = useAppStore((s) => s.setTerminalPanelHeight)
   const services = useServiceStore((s) => s.services)
   const serviceEntries = Object.entries(services)
+  const runningCommands = useDocsStore((s) => s.runningCommands)
+  const docsData = useDocsStore((s) => s.docsData)
+
+  const isAdhocTab = activeTab?.startsWith('adhoc:') ?? false
+  const adhocCommandId = isAdhocTab ? activeTab!.slice(6) : null
+  const adhocScript = adhocCommandId
+    ? docsData?.scripts.find((s) => s.id === adhocCommandId)
+    : null
 
   const isDragging = useRef(false)
   const startY = useRef(0)
@@ -89,6 +99,34 @@ export function TerminalPanel({ height }: TerminalPanelProps): JSX.Element {
             <span>{entry.config.name}</span>
           </button>
         ))}
+        {/* Ad-hoc command tabs */}
+        {Array.from(runningCommands).map((cmdId) => {
+          const script = docsData?.scripts.find((s) => s.id === cmdId)
+          const tabKey = `adhoc:${cmdId}`
+          return (
+            <button
+              key={tabKey}
+              onClick={() => setActiveTab(tabKey)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium rounded transition-colors shrink-0 ${
+                activeTab === tabKey
+                  ? 'bg-surface-700 text-white'
+                  : 'text-surface-400 hover:text-white hover:bg-surface-800'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{script?.command ?? cmdId}</span>
+            </button>
+          )
+        })}
+        {/* Show adhoc tab even after process exits if it's the active tab */}
+        {isAdhocTab && adhocCommandId && !runningCommands.has(adhocCommandId) && (
+          <button
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium rounded transition-colors shrink-0 bg-surface-700 text-white"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-surface-500" />
+            <span>{adhocScript?.command ?? adhocCommandId}</span>
+          </button>
+        )}
         <div className="flex-1" />
         <button
           onClick={() => setTerminalPanelOpen(false)}
@@ -100,7 +138,9 @@ export function TerminalPanel({ height }: TerminalPanelProps): JSX.Element {
 
       {/* Terminal content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab && services[activeTab] ? (
+        {isAdhocTab && adhocCommandId ? (
+          <AdhocTerminalView commandId={adhocCommandId} />
+        ) : activeTab && services[activeTab] ? (
           <TerminalView serviceId={activeTab} />
         ) : (
           <div className="flex items-center justify-center h-full text-surface-500 text-xs">

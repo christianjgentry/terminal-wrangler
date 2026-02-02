@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useServiceStore } from '../stores/service-store'
 import { useAppStore } from '../stores/app-store'
+import { useDocsStore } from '../stores/docs-store'
 import type { ServiceStatus, ServiceConfig } from '@shared/types'
 
 export function useIpcListeners(): void {
@@ -10,6 +11,7 @@ export function useIpcListeners(): void {
   const setServices = useServiceStore((s) => s.setServices)
   const setProjectName = useAppStore((s) => s.setProjectName)
   const setConfigError = useAppStore((s) => s.setConfigError)
+  const removeRunningCommand = useDocsStore((s) => s.removeRunningCommand)
 
   useEffect(() => {
     const unsubStatus = window.api.onServiceStatusChanged(
@@ -47,12 +49,19 @@ export function useIpcListeners(): void {
       }
     )
 
+    const unsubDocsExit = window.api.onDocsCommandExit(
+      (data: { commandId: string; exitCode: number }) => {
+        removeRunningCommand(data.commandId)
+      }
+    )
+
     return () => {
       unsubStatus()
       unsubExit()
       unsubHealth()
       unsubConfigChanged()
       unsubConfigError()
+      unsubDocsExit()
     }
-  }, [updateStatus, updateExitCode, updateHealthCheck, setServices, setProjectName, setConfigError])
+  }, [updateStatus, updateExitCode, updateHealthCheck, setServices, setProjectName, setConfigError, removeRunningCommand])
 }

@@ -12,6 +12,8 @@ interface AppState {
   activeTerminalTab: string | null
   recentProjects: RecentProject[]
   configError: string | null
+  docsPanelOpen: boolean
+  docsPanelWidth: number
 
   setProjectPath: (path: string | null) => void
   setProjectName: (name: string | null) => void
@@ -23,6 +25,8 @@ interface AppState {
   setActiveTerminalTab: (id: string | null) => void
   setRecentProjects: (projects: RecentProject[]) => void
   setConfigError: (error: string | null) => void
+  setDocsPanelOpen: (open: boolean) => void
+  setDocsPanelWidth: (width: number) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -36,6 +40,8 @@ export const useAppStore = create<AppState>((set) => ({
   activeTerminalTab: null,
   recentProjects: [],
   configError: null,
+  docsPanelOpen: false,
+  docsPanelWidth: 320,
 
   setProjectPath: (path) => set({ projectPath: path }),
   setProjectName: (name) => set({ projectName: name }),
@@ -46,5 +52,7 @@ export const useAppStore = create<AppState>((set) => ({
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
   setActiveTerminalTab: (id) => set({ activeTerminalTab: id }),
   setRecentProjects: (projects) => set({ recentProjects: projects }),
-  setConfigError: (error) => set({ configError: error })
+  setConfigError: (error) => set({ configError: error }),
+  setDocsPanelOpen: (open) => set({ docsPanelOpen: open }),
+  setDocsPanelWidth: (width) => set({ docsPanelWidth: width })
 }))

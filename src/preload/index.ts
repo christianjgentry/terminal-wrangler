@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc-channels'
-import type { AppSettings } from '@shared/types'
+import type { AppSettings, ProjectDocsData } from '@shared/types'
 
 const api = {
   // Project
@@ -93,7 +93,41 @@ const api = {
   saveSettings: (settings: Partial<AppSettings>): Promise<void> =>
     ipcRenderer.invoke(IPC.APP_SAVE_SETTINGS, settings),
   getRecentProjects: (): Promise<Array<{ path: string; name: string; lastOpened: number }>> =>
-    ipcRenderer.invoke(IPC.APP_GET_RECENT_PROJECTS)
+    ipcRenderer.invoke(IPC.APP_GET_RECENT_PROJECTS),
+
+  // Docs panel
+  getProjectDocs: (projectPath: string): Promise<ProjectDocsData> =>
+    ipcRenderer.invoke(IPC.DOCS_GET_PROJECT_DOCS, projectPath),
+  runDocsCommand: (commandId: string, command: string, cwd: string, projectPath: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DOCS_RUN_COMMAND, commandId, command, cwd, projectPath),
+  stopDocsCommand: (commandId: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DOCS_COMMAND_STOP, commandId),
+  sendDocsCommandInput: (commandId: string, data: string): void => {
+    ipcRenderer.send(IPC.DOCS_COMMAND_INPUT, { commandId, data })
+  },
+  resizeDocsCommand: (commandId: string, cols: number, rows: number): void => {
+    ipcRenderer.send(IPC.DOCS_COMMAND_RESIZE, { commandId, cols, rows })
+  },
+  onDocsCommandOutput: (
+    callback: (data: { commandId: string; data: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { commandId: string; data: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.DOCS_COMMAND_OUTPUT, handler)
+    return () => ipcRenderer.removeListener(IPC.DOCS_COMMAND_OUTPUT, handler)
+  },
+  onDocsCommandExit: (
+    callback: (data: { commandId: string; exitCode: number }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { commandId: string; exitCode: number }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.DOCS_COMMAND_EXIT, handler)
+    return () => ipcRenderer.removeListener(IPC.DOCS_COMMAND_EXIT, handler)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

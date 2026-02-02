@@ -6,6 +6,8 @@ export function useKeyboardShortcuts(): void {
   const terminalPanelOpen = useAppStore((s) => s.terminalPanelOpen)
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen)
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
+  const setDocsPanelOpen = useAppStore((s) => s.setDocsPanelOpen)
+  const docsPanelOpen = useAppStore((s) => s.docsPanelOpen)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
@@ -23,6 +25,12 @@ export function useKeyboardShortcuts(): void {
         setSidebarOpen(!sidebarOpen)
       }
 
+      // Cmd+D — toggle docs panel
+      if (isMeta && e.key === 'd') {
+        e.preventDefault()
+        setDocsPanelOpen(!docsPanelOpen)
+      }
+
       // Escape — close sidebar
       if (e.key === 'Escape') {
         if (sidebarOpen) {
@@ -33,5 +41,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [terminalPanelOpen, sidebarOpen, setTerminalPanelOpen, setSidebarOpen])
+  }, [terminalPanelOpen, sidebarOpen, docsPanelOpen, setTerminalPanelOpen, setSidebarOpen, setDocsPanelOpen])
 }

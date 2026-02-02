@@ -5,7 +5,8 @@ const defaults: AppSettings = {
   recentProjects: [],
   windowBounds: undefined,
   terminalPanelHeight: 300,
-  sidebarWidth: 320
+  sidebarWidth: 320,
+  docsPanelWidth: 320
 }
 
 export const appStore = new Store<AppSettings>({

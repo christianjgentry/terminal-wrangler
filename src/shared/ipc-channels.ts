@@ -33,5 +33,14 @@ export const IPC = {
   // App
   APP_GET_SETTINGS: 'app:get-settings',
   APP_SAVE_SETTINGS: 'app:save-settings',
-  APP_GET_RECENT_PROJECTS: 'app:get-recent-projects'
+  APP_GET_RECENT_PROJECTS: 'app:get-recent-projects',
+
+  // Docs panel
+  DOCS_GET_PROJECT_DOCS: 'docs:get-project-docs',
+  DOCS_RUN_COMMAND: 'docs:run-command',
+  DOCS_COMMAND_STOP: 'docs:command-stop',
+  DOCS_COMMAND_OUTPUT: 'docs:command-output',
+  DOCS_COMMAND_EXIT: 'docs:command-exit',
+  DOCS_COMMAND_INPUT: 'docs:command-input',
+  DOCS_COMMAND_RESIZE: 'docs:command-resize'
 } as const

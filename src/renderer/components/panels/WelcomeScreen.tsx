@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { useServiceStore } from '../../stores/service-store'
+import { useDocsStore } from '../../stores/docs-store'
 import { ConfigPreviewModal } from './ConfigPreviewModal'
 import type { ServiceConfig } from '@shared/types'
 import logoBlack from '../../assets/logo-black.svg'
@@ -13,6 +14,10 @@ export function WelcomeScreen(): JSX.Element {
   const configError = useAppStore((s) => s.configError)
   const recentProjects = useAppStore((s) => s.recentProjects)
   const setServices = useServiceStore((s) => s.setServices)
+  const setDocsPanelOpen = useAppStore((s) => s.setDocsPanelOpen)
+  const setDocsData = useDocsStore((s) => s.setDocsData)
+  const setDocsLoading = useDocsStore((s) => s.setLoading)
+  const clearDocs = useDocsStore((s) => s.clearDocs)
 
   const [pendingProjectPath, setPendingProjectPath] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -24,6 +29,7 @@ export function WelcomeScreen(): JSX.Element {
       try {
         setConfigError(null)
         setPendingProjectPath(null)
+        clearDocs()
         const result = (await window.api.loadConfig(path)) as {
           project: { name: string; description?: string }
           services: Record<string, ServiceConfig>
@@ -31,6 +37,18 @@ export function WelcomeScreen(): JSX.Element {
         setProjectPath(path)
         setProjectName(result.project.name)
         setServices(result.services)
+
+        // Fetch docs data and open panel
+        setDocsLoading(true)
+        setDocsPanelOpen(true)
+        try {
+          const docsData = await window.api.getProjectDocs(path)
+          setDocsData(docsData)
+        } catch {
+          // Non-fatal: docs panel just shows empty state
+        } finally {
+          setDocsLoading(false)
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         setConfigError(message)
@@ -39,7 +57,7 @@ export function WelcomeScreen(): JSX.Element {
         }
       }
     },
-    [setConfigError, setProjectPath, setProjectName, setServices]
+    [setConfigError, setProjectPath, setProjectName, setServices, setDocsPanelOpen, setDocsData, setDocsLoading, clearDocs]
   )
 
   const handleOpen = async (): Promise<void> => {

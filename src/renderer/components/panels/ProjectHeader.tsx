@@ -10,6 +10,8 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const projectName = useAppStore((s) => s.projectName)
   const terminalPanelOpen = useAppStore((s) => s.terminalPanelOpen)
   const setTerminalPanelOpen = useAppStore((s) => s.setTerminalPanelOpen)
+  const docsPanelOpen = useAppStore((s) => s.docsPanelOpen)
+  const setDocsPanelOpen = useAppStore((s) => s.setDocsPanelOpen)
   const services = useServiceStore((s) => s.services)
 
   const runningCount = Object.values(services).filter(
@@ -30,6 +32,16 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
       <div className="flex-1" />
 
       <div className="no-drag flex items-center gap-1.5">
+        <button
+          onClick={() => setDocsPanelOpen(!docsPanelOpen)}
+          className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
+            docsPanelOpen
+              ? 'text-accent-light bg-accent/20'
+              : 'text-surface-400 bg-white/5 hover:bg-white/10'
+          }`}
+        >
+          Docs
+        </button>
         {onStartAll && (
           <button
             onClick={onStartAll}

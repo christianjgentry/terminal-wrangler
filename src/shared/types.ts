@@ -54,6 +54,23 @@ export interface AppSettings {
   windowBounds?: { x: number; y: number; width: number; height: number }
   terminalPanelHeight?: number
   sidebarWidth?: number
+  docsPanelWidth?: number
+}
+
+export interface DetectedScript {
+  id: string
+  name: string
+  command: string
+  source: string
+  environment: string
+  workingDirectory: string
+  isLongRunning: boolean
+}
+
+export interface ProjectDocsData {
+  readme: string | null
+  scripts: DetectedScript[]
+  environments: string[]
 }
 
 export interface RecentProject {

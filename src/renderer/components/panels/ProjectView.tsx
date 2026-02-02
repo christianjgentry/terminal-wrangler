@@ -5,6 +5,7 @@ import { ProjectHeader } from './ProjectHeader'
 import { ServiceGraph } from '../graph/ServiceGraph'
 import { ServiceDetail } from './ServiceDetail'
 import { TerminalPanel } from '../terminal/TerminalPanel'
+import { DocsPanel } from '../docs/DocsPanel'
 
 export function ProjectView(): JSX.Element {
   const terminalPanelOpen = useAppStore((s) => s.terminalPanelOpen)
@@ -24,6 +25,9 @@ export function ProjectView(): JSX.Element {
     <div className="h-screen w-screen flex flex-col">
       <ProjectHeader onStartAll={handleStartAll} onStopAll={handleStopAll} />
       <div className="flex-1 flex overflow-hidden">
+        {/* Docs panel (left) */}
+        <DocsPanel />
+
         {/* Main content: graph */}
         <div className="flex-1 relative">
           {serviceCount > 0 ? (

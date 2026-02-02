@@ -6,6 +6,8 @@ import { configLoader } from '../config'
 import { configGenerator } from '../config/generator'
 import { processManager } from '../process-manager'
 import { appStore } from '../store'
+import { getProjectDocs } from '../docs/project-docs-provider'
+import * as adhocProcess from '../docs/adhoc-process'
 import type { AppSettings, RecentProject } from '@shared/types'
 
 export function registerIpcHandlers(): void {
@@ -87,13 +89,44 @@ export function registerIpcHandlers(): void {
     return processManager.getBuffer(serviceId)
   })
 
+  // ── Docs panel ──────────────────────────────────────────
+  ipcMain.handle(IPC.DOCS_GET_PROJECT_DOCS, (_event, projectPath: string) => {
+    return getProjectDocs(projectPath)
+  })
+
+  ipcMain.handle(
+    IPC.DOCS_RUN_COMMAND,
+    async (_event, commandId: string, command: string, cwd: string, projectPath: string) => {
+      await adhocProcess.runCommand(commandId, command, cwd, projectPath)
+    }
+  )
+
+  ipcMain.handle(IPC.DOCS_COMMAND_STOP, async (_event, commandId: string) => {
+    await adhocProcess.stopCommand(commandId)
+  })
+
+  ipcMain.on(
+    IPC.DOCS_COMMAND_INPUT,
+    (_event, { commandId, data }: { commandId: string; data: string }) => {
+      adhocProcess.writeInput(commandId, data)
+    }
+  )
+
+  ipcMain.on(
+    IPC.DOCS_COMMAND_RESIZE,
+    (_event, { commandId, cols, rows }: { commandId: string; cols: number; rows: number }) => {
+      adhocProcess.resize(commandId, cols, rows)
+    }
+  )
+
   // ── App settings ──────────────────────────────────────
   ipcMain.handle(IPC.APP_GET_SETTINGS, () => {
     return {
       recentProjects: appStore.get('recentProjects', []),
       windowBounds: appStore.get('windowBounds'),
       terminalPanelHeight: appStore.get('terminalPanelHeight', 300),
-      sidebarWidth: appStore.get('sidebarWidth', 320)
+      sidebarWidth: appStore.get('sidebarWidth', 320),
+      docsPanelWidth: appStore.get('docsPanelWidth', 320)
     } as AppSettings
   })
 
