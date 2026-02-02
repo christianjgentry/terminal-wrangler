@@ -10,6 +10,7 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!{tailwind.config.js,postcss.config.js}'
 mac:
+  icon: build/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
   target:
     - target: dmg

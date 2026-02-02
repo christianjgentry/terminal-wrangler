@@ -3,6 +3,8 @@ import { useAppStore } from '../../stores/app-store'
 import { useServiceStore } from '../../stores/service-store'
 import { ConfigPreviewModal } from './ConfigPreviewModal'
 import type { ServiceConfig } from '@shared/types'
+import logoBlack from '../../assets/logo-black.svg'
+import logoWhite from '../../assets/logo-white.svg'
 
 export function WelcomeScreen(): JSX.Element {
   const setProjectPath = useAppStore((s) => s.setProjectPath)
@@ -86,8 +88,9 @@ export function WelcomeScreen(): JSX.Element {
     <div className="flex-1 flex flex-col items-center justify-center gap-8">
       <div className="drag-region absolute top-0 left-0 right-0 h-10" />
 
-      <div className="flex flex-col items-center gap-2">
-        <h1 className="text-4xl font-bold text-white tracking-tight">Terminal Wrangler</h1>
+      <div className="flex flex-col items-center gap-4">
+        <img src={logoBlack} alt="Terminal Wrangler" className="w-48 h-48 object-contain dark:hidden" />
+        <img src={logoWhite} alt="Terminal Wrangler" className="w-48 h-48 object-contain hidden dark:block" />
         <p className="text-surface-400 text-sm">
           Visualize and manage your project&apos;s terminal services
         </p>

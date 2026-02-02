@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, nativeImage } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
@@ -8,11 +8,13 @@ import { configLoader } from './config'
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
+  const iconPath = join(__dirname, '../../build/icon.png')
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 800,
     minHeight: 600,
+    icon: nativeImage.createFromPath(iconPath),
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#1e1e2e',
