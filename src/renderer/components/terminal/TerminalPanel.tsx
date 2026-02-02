@@ -15,6 +15,7 @@ export function TerminalPanel({ height }: TerminalPanelProps): JSX.Element {
   const setActiveTab = useAppStore((s) => s.setActiveTerminalTab)
   const setTerminalPanelOpen = useAppStore((s) => s.setTerminalPanelOpen)
   const setTerminalPanelHeight = useAppStore((s) => s.setTerminalPanelHeight)
+  const setSelectedServiceId = useAppStore((s) => s.setSelectedServiceId)
   const services = useServiceStore((s) => s.services)
   const serviceEntries = Object.entries(services)
   const runningCommands = useDocsStore((s) => s.runningCommands)
@@ -88,7 +89,7 @@ export function TerminalPanel({ height }: TerminalPanelProps): JSX.Element {
         {serviceEntries.map(([id, entry]) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => { setActiveTab(id); setSelectedServiceId(id) }}
             className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium rounded transition-colors shrink-0 ${
               activeTab === id
                 ? 'bg-surface-700 text-white'

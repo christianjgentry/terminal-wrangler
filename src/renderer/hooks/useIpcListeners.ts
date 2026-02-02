@@ -11,12 +11,18 @@ export function useIpcListeners(): void {
   const setServices = useServiceStore((s) => s.setServices)
   const setProjectName = useAppStore((s) => s.setProjectName)
   const setConfigError = useAppStore((s) => s.setConfigError)
+  const setTerminalPanelOpen = useAppStore((s) => s.setTerminalPanelOpen)
+  const setActiveTerminalTab = useAppStore((s) => s.setActiveTerminalTab)
   const removeRunningCommand = useDocsStore((s) => s.removeRunningCommand)
 
   useEffect(() => {
     const unsubStatus = window.api.onServiceStatusChanged(
       (data: { serviceId: string; status: string; pid?: number }) => {
         updateStatus(data.serviceId, data.status as ServiceStatus, data.pid)
+        if (data.status === 'starting') {
+          setTerminalPanelOpen(true)
+          setActiveTerminalTab(data.serviceId)
+        }
       }
     )
 
@@ -63,5 +69,5 @@ export function useIpcListeners(): void {
       unsubConfigError()
       unsubDocsExit()
     }
-  }, [updateStatus, updateExitCode, updateHealthCheck, setServices, setProjectName, setConfigError, removeRunningCommand])
+  }, [updateStatus, updateExitCode, updateHealthCheck, setServices, setProjectName, setConfigError, setTerminalPanelOpen, setActiveTerminalTab, removeRunningCommand])
 }

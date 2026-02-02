@@ -63,26 +63,38 @@ export function TerminalView({ serviceId }: TerminalViewProps): JSX.Element {
       })
     }
 
-    // Open terminal in container
-    instance.terminal.open(container)
+    // Open or re-attach terminal in container.
+    // xterm.js open() is a no-op when called a second time (it checks
+    // this.element internally), so for cached instances we re-attach
+    // the existing DOM element instead.
+    const isReattach = !!instance.terminal.element
+    if (isReattach) {
+      container.appendChild(instance.terminal.element)
+    } else {
+      instance.terminal.open(container)
+    }
 
-    // Fit to container
+    // Fit to container — double rAF ensures layout is complete before measuring
     requestAnimationFrame(() => {
-      try {
-        instance!.fitAddon.fit()
-        const { cols, rows } = instance!.terminal
-        window.api.resizeTerminal(serviceId, cols, rows)
-      } catch {
-        // Ignore fit errors during mount
-      }
+      requestAnimationFrame(() => {
+        try {
+          instance!.fitAddon.fit()
+          const { cols, rows } = instance!.terminal
+          window.api.resizeTerminal(serviceId, cols, rows)
+        } catch {
+          // Ignore fit errors during mount
+        }
+      })
     })
 
-    // Replay buffer
-    window.api.getTerminalBuffer(serviceId).then((buffer) => {
-      if (buffer) {
-        instance!.terminal.write(buffer)
-      }
-    })
+    // Replay buffer for new terminals; reattached ones already have content
+    if (!isReattach) {
+      window.api.getTerminalBuffer(serviceId).then((buffer) => {
+        if (buffer) {
+          instance!.terminal.write(buffer)
+        }
+      })
+    }
 
     // Listen for terminal data
     const unsubData = window.api.onTerminalData((payload) => {

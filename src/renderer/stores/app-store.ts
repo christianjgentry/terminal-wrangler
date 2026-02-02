@@ -45,7 +45,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   setProjectPath: (path) => set({ projectPath: path }),
   setProjectName: (name) => set({ projectName: name }),
-  setSelectedServiceId: (id) => set({ selectedServiceId: id, sidebarOpen: id !== null }),
+  setSelectedServiceId: (id) => set({
+    selectedServiceId: id,
+    sidebarOpen: id !== null,
+    ...(id !== null ? { activeTerminalTab: id, terminalPanelOpen: true } : {})
+  }),
   setTerminalPanelOpen: (open) => set({ terminalPanelOpen: open }),
   setTerminalPanelHeight: (height) => set({ terminalPanelHeight: height }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
