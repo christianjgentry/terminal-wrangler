@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
-import type { AgentStatus, AgentInfo, SubagentInfo, CreateAgentRequest } from '@shared/agent-types'
+import type { AgentStatus, AgentInfo, AgentTask, SubagentInfo, CreateAgentRequest } from '@shared/agent-types'
 import type { AgentProcessEvents } from './types'
 import { AgentProcess } from './agent-process'
 import { githubManager } from '../github-manager'
@@ -79,6 +79,13 @@ export class AgentProcessManager {
         if (info) {
           info.contextUsage = { used, max }
           this.broadcast(IPC.AGENT_CONTEXT_USAGE, { agentId, used, max })
+        }
+      },
+      onTasksChanged: (agentId, tasks) => {
+        const info = this.agentInfos.get(agentId)
+        if (info) {
+          info.tasks = tasks
+          this.broadcast(IPC.AGENT_TASKS_CHANGED, { agentId, tasks })
         }
       }
     }

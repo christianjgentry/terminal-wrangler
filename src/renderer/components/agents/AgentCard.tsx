@@ -4,6 +4,7 @@ import { useGithubStore } from '../../stores/github-store'
 import { useAgentStore } from '../../stores/agent-store'
 import { AgentStatusBadge } from './AgentStatusBadge'
 import { AgentMiniTerminal } from './AgentMiniTerminal'
+import { AgentTaskList } from './AgentTaskList'
 import { ContextUsageBar } from './ContextUsageBar'
 import { PrStatusSection } from './PrStatusSection'
 
@@ -50,8 +51,16 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal }: AgentCard
           <AgentStatusBadge status={agent.status} size="sm" />
         </div>
 
-        {/* Mini terminal */}
-        {!isSubagent && <AgentMiniTerminal agentId={agent.id} />}
+        {/* Mini terminal or task list */}
+        {!isSubagent && (
+          agent.tasks && agent.tasks.length > 0 ? (
+            <AgentTaskList tasks={agent.tasks} />
+          ) : agent.status === 'building' ? (
+            <AgentTaskList tasks={[]} />
+          ) : (
+            <AgentMiniTerminal agentId={agent.id} />
+          )
+        )}
 
         {/* Context usage bar */}
         {agent.contextUsage && isActive && (

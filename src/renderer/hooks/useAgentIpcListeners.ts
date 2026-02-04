@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useAgentStore } from '../stores/agent-store'
 import { useAgentTerminalStore } from '../stores/agent-terminal-store'
 import { useGithubStore } from '../stores/github-store'
-import type { AgentStatus, AgentInfo } from '@shared/agent-types'
+import type { AgentStatus, AgentInfo, AgentTask } from '@shared/agent-types'
 import type { PrInfo } from '@shared/github-types'
 
 export function useAgentIpcListeners(): void {
@@ -11,6 +11,7 @@ export function useAgentIpcListeners(): void {
   const addSubagent = useAgentStore((s) => s.addSubagent)
   const setPrUrl = useAgentStore((s) => s.setPrUrl)
   const updateContextUsage = useAgentStore((s) => s.updateContextUsage)
+  const updateTasks = useAgentStore((s) => s.updateTasks)
   const appendData = useAgentTerminalStore((s) => s.appendData)
   const setPrInfo = useGithubStore((s) => s.setPrInfo)
 
@@ -47,6 +48,12 @@ export function useAgentIpcListeners(): void {
       }
     )
 
+    const unsubTasks = window.api.onAgentTasksChanged(
+      (data: { agentId: string; tasks: AgentTask[] }) => {
+        updateTasks(data.agentId, data.tasks)
+      }
+    )
+
     const unsubTerminal = window.api.onAgentTerminalData(
       (data: { agentId: string; data: string }) => {
         appendData(data.agentId, data.data)
@@ -65,8 +72,9 @@ export function useAgentIpcListeners(): void {
       unsubSubagent()
       unsubPr()
       unsubContextUsage()
+      unsubTasks()
       unsubTerminal()
       unsubPrInfo()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, updateContextUsage, appendData, setPrInfo])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, updateContextUsage, updateTasks, appendData, setPrInfo])
 }

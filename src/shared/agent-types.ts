@@ -1,5 +1,14 @@
 export type AgentStatus = 'idle' | 'planning' | 'building' | 'pr_ready' | 'done' | 'error' | 'stopped'
 
+export type AgentTaskStatus = 'pending' | 'in_progress' | 'completed'
+
+export interface AgentTask {
+  id: number
+  subject: string
+  activeForm?: string
+  status: AgentTaskStatus
+}
+
 export interface ContextUsage {
   used: number // in thousands (e.g., 45.2 = 45.2k tokens)
   max: number  // in thousands (e.g., 200 = 200k tokens)
@@ -28,6 +37,7 @@ export interface AgentInfo {
   gitRemote?: import('./github-types').GitRemoteInfo
   files?: string[]
   contextUsage?: ContextUsage
+  tasks?: AgentTask[]
 }
 
 export interface CreateAgentRequest {

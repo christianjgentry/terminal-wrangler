@@ -1,4 +1,4 @@
-import type { AgentStatus } from '@shared/agent-types'
+import type { AgentStatus, AgentTask } from '@shared/agent-types'
 
 export interface AgentProcessEvents {
   onStatusChange: (agentId: string, status: AgentStatus) => void
@@ -7,6 +7,7 @@ export interface AgentProcessEvents {
   onSubagentDetected: (agentId: string, taskDescription: string) => void
   onPrDetected: (agentId: string, prUrl: string) => void
   onContextUsageChanged: (agentId: string, used: number, max: number) => void
+  onTasksChanged: (agentId: string, tasks: AgentTask[]) => void
 }
 
 export interface AgentConfig {

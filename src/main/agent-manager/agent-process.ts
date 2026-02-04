@@ -35,6 +35,9 @@ export class AgentProcess {
       },
       onContextUsageChanged: (used: number, max: number) => {
         this.events.onContextUsageChanged(this.id, used, max)
+      },
+      onTasksChanged: (tasks) => {
+        this.events.onTasksChanged(this.id, tasks)
       }
     })
   }

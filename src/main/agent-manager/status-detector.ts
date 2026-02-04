@@ -1,4 +1,4 @@
-import type { AgentStatus } from '@shared/agent-types'
+import type { AgentStatus, AgentTask, AgentTaskStatus } from '@shared/agent-types'
 import { cleanTerminalOutput } from '@shared/strip-ansi'
 
 interface StatusDetectorEvents {
@@ -6,6 +6,7 @@ interface StatusDetectorEvents {
   onSubagentDetected: (taskDescription: string) => void
   onPrDetected: (prUrl: string) => void
   onContextUsageChanged: (used: number, max: number) => void
+  onTasksChanged: (tasks: AgentTask[]) => void
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
@@ -71,6 +72,10 @@ export class StatusDetector {
   private detectedPrUrls = new Set<string>()
   private detectedSubagentTasks = new Set<string>()
   private lastContextUsed = -1
+  private taskCounter = 0
+  private detectedTasks = new Map<string, AgentTask>()
+  private claudeIdToOurId = new Map<string, number>()
+  private lastTaskScanOffset = 0
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -93,6 +98,9 @@ export class StatusDetector {
 
     // Detect context usage
     this.detectContextUsage()
+
+    // Detect tasks
+    this.detectTasks()
 
     // Determine status in priority order
     const detected = this.detectStatus(recent)
@@ -253,6 +261,114 @@ export class StatusDetector {
         this.detectedPrUrls.add(url)
         this.events.onPrDetected(url)
       }
+    }
+  }
+
+  private detectTasks(): void {
+    const buffer = this.contextBuffer
+    // Only scan new text since last check
+    const scanFrom = Math.max(0, this.lastTaskScanOffset)
+    if (scanFrom >= buffer.length) return
+
+    const newText = buffer.slice(scanFrom)
+    this.lastTaskScanOffset = buffer.length
+
+    let changed = false
+
+    // Detect TaskCreate: extract subject (and optionally activeForm)
+    const createRegex = /TaskCreate\b[\s\S]{0,500}?subject[:\s]*"?([^"\n]{1,200})"?/g
+    let match: RegExpExecArray | null
+    while ((match = createRegex.exec(newText)) !== null) {
+      const subject = match[1].trim()
+      if (!subject) continue
+
+      // Deduplicate by subject text
+      const existingBySubject = Array.from(this.detectedTasks.values()).find(
+        (t) => t.subject === subject
+      )
+      if (existingBySubject) continue
+
+      this.taskCounter++
+      const task: AgentTask = {
+        id: this.taskCounter,
+        subject,
+        status: 'pending'
+      }
+
+      // Try to extract activeForm near this match
+      const vicinity = newText.slice(
+        Math.max(0, match.index - 50),
+        Math.min(newText.length, match.index + match[0].length + 300)
+      )
+      const activeFormMatch = vicinity.match(/activeForm[:\s]*"?([^"\n]{1,200})"?/)
+      if (activeFormMatch) {
+        task.activeForm = activeFormMatch[1].trim()
+      }
+
+      // Try to extract Claude's taskId for mapping
+      const idMatch = vicinity.match(/taskId[:\s]*"?(\d+)"?/)
+      if (idMatch) {
+        this.claudeIdToOurId.set(idMatch[1], task.id)
+      }
+
+      this.detectedTasks.set(String(task.id), task)
+      changed = true
+    }
+
+    // Detect TaskUpdate: find taskId and status
+    const updateRegex =
+      /TaskUpdate\b[\s\S]{0,500}?taskId[:\s]*"?(\d+)"?[\s\S]{0,200}?status[:\s]*"?(pending|in_progress|completed)"?/g
+    while ((match = updateRegex.exec(newText)) !== null) {
+      const claudeTaskId = match[1]
+      const newStatus = match[2] as AgentTaskStatus
+
+      // Map Claude's task ID to our sequential ID
+      const ourId = this.claudeIdToOurId.get(claudeTaskId)
+      if (ourId !== undefined) {
+        const task = this.detectedTasks.get(String(ourId))
+        if (task && task.status !== newStatus) {
+          task.status = newStatus
+          changed = true
+        }
+      } else {
+        // Try matching by order: Claude's ID 1 = our first task, etc.
+        const orderedTasks = Array.from(this.detectedTasks.values()).sort(
+          (a, b) => a.id - b.id
+        )
+        const idx = parseInt(claudeTaskId, 10) - 1
+        if (idx >= 0 && idx < orderedTasks.length) {
+          const task = orderedTasks[idx]
+          if (task.status !== newStatus) {
+            task.status = newStatus
+            this.claudeIdToOurId.set(claudeTaskId, task.id)
+            changed = true
+          }
+        }
+      }
+
+      // Try to extract activeForm near this match
+      const vicinity = newText.slice(
+        Math.max(0, match.index),
+        Math.min(newText.length, match.index + match[0].length + 200)
+      )
+      const activeFormMatch = vicinity.match(/activeForm[:\s]*"?([^"\n]{1,200})"?/)
+      if (activeFormMatch) {
+        const aOurId = this.claudeIdToOurId.get(claudeTaskId)
+        if (aOurId !== undefined) {
+          const task = this.detectedTasks.get(String(aOurId))
+          if (task) {
+            task.activeForm = activeFormMatch[1].trim()
+            changed = true
+          }
+        }
+      }
+    }
+
+    if (changed) {
+      const orderedTasks = Array.from(this.detectedTasks.values()).sort(
+        (a, b) => a.id - b.id
+      )
+      this.events.onTasksChanged(orderedTasks)
     }
   }
 }

@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppSettings, ProjectDocsData } from '@shared/types'
-import type { AgentInfo, CreateAgentRequest } from '@shared/agent-types'
+import type { AgentInfo, AgentTask, CreateAgentRequest } from '@shared/agent-types'
 import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 
 const api = {
@@ -202,6 +202,16 @@ const api = {
     ): void => callback(data)
     ipcRenderer.on(IPC.AGENT_CONTEXT_USAGE, handler)
     return () => ipcRenderer.removeListener(IPC.AGENT_CONTEXT_USAGE, handler)
+  },
+  onAgentTasksChanged: (
+    callback: (data: { agentId: string; tasks: AgentTask[] }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; tasks: AgentTask[] }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_TASKS_CHANGED, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_TASKS_CHANGED, handler)
   },
 
   // Agent terminal

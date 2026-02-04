@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentStatus, AgentInfo } from '@shared/agent-types'
+import type { AgentStatus, AgentInfo, AgentTask } from '@shared/agent-types'
 
 interface AgentState {
   agents: Record<string, AgentInfo>
@@ -11,6 +11,7 @@ interface AgentState {
   addSubagent: (parentAgentId: string, subagent: AgentInfo) => void
   setPrUrl: (agentId: string, prUrl: string) => void
   updateContextUsage: (agentId: string, used: number, max: number) => void
+  updateTasks: (agentId: string, tasks: AgentTask[]) => void
   setSelectedAgentId: (id: string | null) => void
   getAgentsByStatus: (status: AgentStatus) => AgentInfo[]
   setAgents: (agents: AgentInfo[]) => void
@@ -82,6 +83,18 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         agents: {
           ...state.agents,
           [agentId]: { ...agent, contextUsage: { used, max } }
+        }
+      }
+    }),
+
+  updateTasks: (agentId, tasks) =>
+    set((state) => {
+      const agent = state.agents[agentId]
+      if (!agent) return state
+      return {
+        agents: {
+          ...state.agents,
+          [agentId]: { ...agent, tasks }
         }
       }
     }),
