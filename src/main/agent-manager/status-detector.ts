@@ -132,12 +132,11 @@ export class StatusDetector {
     if (this._isStopped) return
 
     if (exitCode === 0 || exitCode === null) {
-      // If a PR was detected, stay at pr_ready (wait for merge)
+      // If a PR was detected, ensure pr_ready status
       if (this.detectedPrUrls.size > 0) {
         this.setStatus('pr_ready')
-      } else {
-        this.setStatus('done')
       }
+      // Otherwise keep current status — done is set via Mark Done or PR merge
     } else {
       this.setStatus('error')
     }
@@ -195,6 +194,23 @@ export class StatusDetector {
     if (this.currentStatus === 'idle' && newStatus === 'planning') {
       this.clearDebounce()
       this.setStatus(newStatus)
+      return
+    }
+
+    // Force through planning when jumping from idle to building or beyond
+    if (this.currentStatus === 'idle' && STATUS_RANK[newStatus] > STATUS_RANK['planning']) {
+      this.setStatus('planning')
+      this.pendingStatus = newStatus
+      this.debounceTimer = setTimeout(() => {
+        if (this.pendingStatus) {
+          const pendingRank = STATUS_RANK[this.pendingStatus]
+          const curRank = STATUS_RANK[this.currentStatus]
+          if (pendingRank > curRank || TERMINAL_STATUSES.has(this.pendingStatus)) {
+            this.setStatus(this.pendingStatus)
+          }
+          this.pendingStatus = null
+        }
+      }, DEBOUNCE_MS)
       return
     }
 

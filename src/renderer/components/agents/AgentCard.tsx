@@ -20,7 +20,8 @@ interface AgentCardProps {
 export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: AgentCardProps): JSX.Element {
   const color = agentStatusColors[agent.status]
   const isSubagent = !!agent.parentAgentId
-  const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
+  const isProcessAlive = agent.processAlive !== false
+  const isTerminalStatus = agent.status === 'done' || agent.status === 'stopped' || agent.status === 'error'
   const prInfo = useGithubStore((s) => s.prInfoByAgent[agent.id])
   const updateStatus = useAgentStore((s) => s.updateStatus)
   const setActiveAgentTerminalTab = useAppStore((s) => s.setActiveAgentTerminalTab)
@@ -68,7 +69,7 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
         )}
 
         {/* Context usage bar */}
-        {agent.contextUsage && isActive && (
+        {agent.contextUsage && isProcessAlive && !isTerminalStatus && (
           <ContextUsageBar used={agent.contextUsage.used} max={agent.contextUsage.max} />
         )}
 
@@ -121,7 +122,7 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
             >
               Terminal
             </button>
-            {isActive && (
+            {isProcessAlive && !isTerminalStatus && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -132,7 +133,29 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
                 Stop
               </button>
             )}
-            {!isActive && (
+            {!isProcessAlive && !isTerminalStatus && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRerun(agent.id)
+                  }}
+                  className="px-1.5 py-0.5 text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 rounded transition-colors"
+                >
+                  Re-run
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    window.api.markAgentDone(agent.id)
+                  }}
+                  className="px-1.5 py-0.5 text-[9px] text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
+                >
+                  Done
+                </button>
+              </>
+            )}
+            {isTerminalStatus && !isProcessAlive && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()

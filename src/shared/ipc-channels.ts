@@ -55,6 +55,7 @@ export const IPC = {
   AGENT_REMOVE: 'agent:remove',
   AGENT_GET_ALL: 'agent:get-all',
   AGENT_GET_STATE: 'agent:get-state',
+  AGENT_MARK_DONE: 'agent:mark-done',
 
   // Agent events (main -> renderer)
   AGENT_STATUS_CHANGED: 'agent:status-changed',

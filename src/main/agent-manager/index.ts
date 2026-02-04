@@ -35,6 +35,10 @@ export class AgentProcessManager {
         this.broadcast(IPC.AGENT_TERMINAL_DATA, { agentId, data })
       },
       onExit: (agentId, exitCode) => {
+        const info = this.agentInfos.get(agentId)
+        if (info) {
+          info.processAlive = false
+        }
         this.broadcast(IPC.AGENT_EXIT, { agentId, exitCode })
       },
       onSubagentDetected: (agentId, taskDescription) => {
@@ -131,7 +135,8 @@ export class AgentProcessManager {
       subagents: [],
       gitRemote: gitRemote ?? undefined,
       files: request.files,
-      branch
+      branch,
+      processAlive: true
     }
     this.agentInfos.set(id, info)
 

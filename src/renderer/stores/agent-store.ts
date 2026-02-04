@@ -13,6 +13,7 @@ interface AgentState {
   setPlanFilePath: (agentId: string, planFilePath: string) => void
   updateContextUsage: (agentId: string, used: number, max: number) => void
   updateTasks: (agentId: string, tasks: AgentTask[]) => void
+  setProcessAlive: (agentId: string, alive: boolean) => void
   setSelectedAgentId: (id: string | null) => void
   getAgentsByStatus: (status: AgentStatus) => AgentInfo[]
   setAgents: (agents: AgentInfo[]) => void
@@ -108,6 +109,18 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         agents: {
           ...state.agents,
           [agentId]: { ...agent, tasks }
+        }
+      }
+    }),
+
+  setProcessAlive: (agentId, alive) =>
+    set((state) => {
+      const agent = state.agents[agentId]
+      if (!agent) return state
+      return {
+        agents: {
+          ...state.agents,
+          [agentId]: { ...agent, processAlive: alive }
         }
       }
     }),

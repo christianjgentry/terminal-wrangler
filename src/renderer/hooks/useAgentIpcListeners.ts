@@ -13,6 +13,7 @@ export function useAgentIpcListeners(): void {
   const setPlanFilePath = useAgentStore((s) => s.setPlanFilePath)
   const updateContextUsage = useAgentStore((s) => s.updateContextUsage)
   const updateTasks = useAgentStore((s) => s.updateTasks)
+  const setProcessAlive = useAgentStore((s) => s.setProcessAlive)
   const appendData = useAgentTerminalStore((s) => s.appendData)
   const setPrInfo = useGithubStore((s) => s.setPrInfo)
 
@@ -25,6 +26,7 @@ export function useAgentIpcListeners(): void {
 
     const unsubExit = window.api.onAgentExit(
       (data: { agentId: string; exitCode: number | null }) => {
+        setProcessAlive(data.agentId, false)
         if (data.exitCode !== null && data.exitCode !== 0) {
           updateStatus(data.agentId, 'error')
         }
@@ -84,5 +86,5 @@ export function useAgentIpcListeners(): void {
       unsubPrInfo()
       unsubPlan()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, appendData, setPrInfo])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, setProcessAlive, appendData, setPrInfo])
 }

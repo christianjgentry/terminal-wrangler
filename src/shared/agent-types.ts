@@ -40,6 +40,7 @@ export interface AgentInfo {
   contextUsage?: ContextUsage
   tasks?: AgentTask[]
   branch?: string
+  processAlive?: boolean
 }
 
 export interface CreateAgentRequest {

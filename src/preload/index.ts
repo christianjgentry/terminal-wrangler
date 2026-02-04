@@ -154,6 +154,8 @@ const api = {
     ipcRenderer.invoke(IPC.AGENT_GET_ALL),
   getAgentState: (agentId: string): Promise<AgentInfo | null> =>
     ipcRenderer.invoke(IPC.AGENT_GET_STATE, agentId),
+  markAgentDone: (agentId: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.AGENT_MARK_DONE, agentId),
   getAgentPlanContent: (agentId: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC.AGENT_GET_PLAN_CONTENT, agentId),
   saveAgentPlan: (agentId: string): Promise<boolean> =>

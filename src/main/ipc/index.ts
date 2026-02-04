@@ -170,6 +170,10 @@ export function registerIpcHandlers(): void {
     return agentProcessManager.getAgentState(agentId)
   })
 
+  ipcMain.handle(IPC.AGENT_MARK_DONE, (_event, agentId: string) => {
+    agentProcessManager.updateAgentStatus(agentId, 'done')
+  })
+
   // ── Agent terminal ──────────────────────────────────
   ipcMain.on(
     IPC.AGENT_TERMINAL_INPUT,

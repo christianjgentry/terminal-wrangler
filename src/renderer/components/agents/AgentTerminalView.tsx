@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { useAgentStore } from '../../stores/agent-store'
 import '@xterm/xterm/css/xterm.css'
 
 interface AgentTerminalViewProps {
   agentId: string
+  onRerun?: (agentId: string) => void
 }
 
 const agentTerminalInstances = new Map<string, { terminal: Terminal; fitAddon: FitAddon }>()
@@ -17,9 +19,12 @@ export function disposeAgentTerminal(agentId: string): void {
   }
 }
 
-export function AgentTerminalView({ agentId }: AgentTerminalViewProps): JSX.Element {
+export function AgentTerminalView({ agentId, onRerun }: AgentTerminalViewProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const agent = useAgentStore((s) => s.agents[agentId])
+  const isProcessAlive = agent?.processAlive !== false
+  const isTerminalStatus = agent?.status === 'done' || agent?.status === 'stopped' || agent?.status === 'error'
 
   useEffect(() => {
     const container = containerRef.current
@@ -127,5 +132,30 @@ export function AgentTerminalView({ agentId }: AgentTerminalViewProps): JSX.Elem
     }
   }, [agentId])
 
-  return <div ref={containerRef} className="w-full h-full" />
+  const showBanner = !isProcessAlive && !isTerminalStatus
+
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
+      {showBanner && (
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-3 py-1.5 bg-surface-900/85 backdrop-blur-sm border-b border-white/10 z-10">
+          <span className="text-[11px] text-surface-400">Process exited</span>
+          {onRerun && (
+            <button
+              onClick={() => onRerun(agentId)}
+              className="px-2 py-0.5 text-[10px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 rounded transition-colors"
+            >
+              Re-run
+            </button>
+          )}
+          <button
+            onClick={() => window.api.markAgentDone(agentId)}
+            className="px-2 py-0.5 text-[10px] text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
+          >
+            Mark Done
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
