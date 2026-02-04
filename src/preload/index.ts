@@ -118,6 +118,8 @@ const api = {
   resizeDocsCommand: (commandId: string, cols: number, rows: number): void => {
     ipcRenderer.send(IPC.DOCS_COMMAND_RESIZE, { commandId, cols, rows })
   },
+  getDocsCommandBuffer: (commandId: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.DOCS_COMMAND_GET_BUFFER, commandId),
   onDocsCommandOutput: (
     callback: (data: { commandId: string; data: string }) => void
   ): (() => void) => {

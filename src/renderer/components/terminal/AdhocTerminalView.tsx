@@ -61,17 +61,37 @@ export function AdhocTerminalView({ commandId }: AdhocTerminalViewProps): JSX.El
       })
     }
 
-    instance.terminal.open(container)
+    // Open or re-attach terminal in container.
+    // xterm.js open() is a no-op when called a second time, so for cached
+    // instances we re-attach the existing DOM element instead.
+    const isReattach = !!instance.terminal.element
+    if (isReattach) {
+      container.appendChild(instance.terminal.element)
+    } else {
+      instance.terminal.open(container)
+    }
 
+    // Fit to container — double rAF ensures layout is complete before measuring
     requestAnimationFrame(() => {
-      try {
-        instance!.fitAddon.fit()
-        const { cols, rows } = instance!.terminal
-        window.api.resizeDocsCommand(commandId, cols, rows)
-      } catch {
-        // Ignore fit errors during mount
-      }
+      requestAnimationFrame(() => {
+        try {
+          instance!.fitAddon.fit()
+          const { cols, rows } = instance!.terminal
+          window.api.resizeDocsCommand(commandId, cols, rows)
+        } catch {
+          // Ignore fit errors during mount
+        }
+      })
     })
+
+    // Replay buffer for new terminals; reattached ones already have content
+    if (!isReattach) {
+      window.api.getDocsCommandBuffer(commandId).then((buffer) => {
+        if (buffer) {
+          instance!.terminal.write(buffer)
+        }
+      })
+    }
 
     const unsubOutput = window.api.onDocsCommandOutput((payload) => {
       if (payload.commandId === commandId) {

@@ -72,6 +72,7 @@ export interface ProjectDocsData {
   readme: string | null
   scripts: DetectedScript[]
   environments: string[]
+  isNpmProject: boolean
 }
 
 export interface RecentProject {

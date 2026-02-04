@@ -46,6 +46,7 @@ export const IPC = {
   DOCS_COMMAND_EXIT: 'docs:command-exit',
   DOCS_COMMAND_INPUT: 'docs:command-input',
   DOCS_COMMAND_RESIZE: 'docs:command-resize',
+  DOCS_COMMAND_GET_BUFFER: 'docs:command-get-buffer',
 
   // Agent management
   AGENT_CREATE: 'agent:create',

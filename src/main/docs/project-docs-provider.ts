@@ -231,5 +231,7 @@ export function getProjectDocs(projectPath: string): ProjectDocsData {
   const envSet = new Set(scripts.map((s) => s.environment))
   const environments = ENV_ORDER.filter((e) => envSet.has(e))
 
-  return { readme, scripts, environments }
+  const isNpmProject = existsSync(join(projectPath, 'package.json'))
+
+  return { readme, scripts, environments, isNpmProject }
 }

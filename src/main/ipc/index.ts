@@ -141,6 +141,10 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  ipcMain.handle(IPC.DOCS_COMMAND_GET_BUFFER, (_event, commandId: string) => {
+    return adhocProcess.getBuffer(commandId)
+  })
+
   // ── Agent management ──────────────────────────────────
   ipcMain.handle(IPC.AGENT_CREATE, async (_event, request: CreateAgentRequest) => {
     return agentProcessManager.createAgent(request)

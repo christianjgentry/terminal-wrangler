@@ -1,7 +1,8 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { useServiceStore } from '../../stores/service-store'
 import { useAgentStore } from '../../stores/agent-store'
+import { useDocsStore } from '../../stores/docs-store'
 import type { ActiveView } from '../../stores/app-store'
 import { SessionUsageIndicator } from '../shared/SessionUsageIndicator'
 
@@ -11,6 +12,7 @@ interface ProjectHeaderProps {
 }
 
 export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JSX.Element {
+  const projectPath = useAppStore((s) => s.projectPath)
   const projectName = useAppStore((s) => s.projectName)
   const activeView = useAppStore((s) => s.activeView)
   const setActiveView = useAppStore((s) => s.setActiveView)
@@ -20,8 +22,13 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const setDocsPanelOpen = useAppStore((s) => s.setDocsPanelOpen)
   const agentTerminalPanelOpen = useAppStore((s) => s.agentTerminalPanelOpen)
   const setAgentTerminalPanelOpen = useAppStore((s) => s.setAgentTerminalPanelOpen)
+  const setActiveTerminalTab = useAppStore((s) => s.setActiveTerminalTab)
   const services = useServiceStore((s) => s.services)
   const agents = useAgentStore((s) => s.agents)
+  const docsData = useDocsStore((s) => s.docsData)
+  const runningCommands = useDocsStore((s) => s.runningCommands)
+  const addRunningCommand = useDocsStore((s) => s.addRunningCommand)
+  const removeRunningCommand = useDocsStore((s) => s.removeRunningCommand)
 
   const runningCount = Object.values(services).filter(
     (s) => s.status === 'running' || s.status === 'starting'
@@ -29,9 +36,28 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const totalCount = Object.keys(services).length
   const agentCount = Object.keys(agents).length
 
+  const isNpmInstallRunning = runningCommands.has('npm-install')
+
+  const handleNpmInstall = useCallback(async () => {
+    if (!projectPath || isNpmInstallRunning) return
+    addRunningCommand('npm-install')
+    setTerminalPanelOpen(true)
+    setActiveTerminalTab('adhoc:npm-install')
+    await window.api.runDocsCommand('npm-install', 'npm install', projectPath, projectPath)
+  }, [projectPath, isNpmInstallRunning, addRunningCommand, setTerminalPanelOpen, setActiveTerminalTab])
+
   const handleStopAllAgents = useCallback(async () => {
     await window.api.stopAllAgents()
   }, [])
+
+  useEffect(() => {
+    const cleanup = window.api.onDocsCommandExit((data) => {
+      if (data.commandId === 'npm-install') {
+        removeRunningCommand('npm-install')
+      }
+    })
+    return cleanup
+  }, [removeRunningCommand])
 
   return (
     <div className="drag-region h-10 flex items-center px-20 bg-surface-900 border-b border-white/5 shrink-0">
@@ -72,6 +98,23 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
       </div>
 
       <div className="no-drag flex items-center gap-1.5">
+        {docsData?.isNpmProject && (
+          <button
+            onClick={handleNpmInstall}
+            disabled={isNpmInstallRunning}
+            className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
+              isNpmInstallRunning
+                ? 'text-surface-500 bg-white/5 cursor-not-allowed'
+                : 'text-surface-400 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            {isNpmInstallRunning && (
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1.5 align-middle" />
+            )}
+            npm install
+          </button>
+        )}
+
         {activeView === 'services' && (
           <>
             <button
