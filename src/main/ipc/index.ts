@@ -6,6 +6,7 @@ import { configLoader } from '../config'
 import { configGenerator } from '../config/generator'
 import { processManager } from '../process-manager'
 import { agentProcessManager } from '../agent-manager'
+import { githubManager } from '../github-manager'
 import { appStore } from '../store'
 import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
@@ -159,6 +160,27 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.AGENT_TERMINAL_GET_BUFFER, (_event, agentId: string) => {
     return agentProcessManager.getBuffer(agentId)
+  })
+
+  // ── GitHub integration ──────────────────────────────
+  ipcMain.handle(IPC.GITHUB_GET_AUTH_STATUS, async () => {
+    return githubManager.getAuthStatus()
+  })
+
+  ipcMain.handle(IPC.GITHUB_GET_REMOTE, async (_event, cwd: string) => {
+    return githubManager.getRemote(cwd)
+  })
+
+  ipcMain.handle(IPC.GITHUB_GET_PR_INFO, async (_event, prUrl: string) => {
+    return githubManager.getPrInfo(prUrl)
+  })
+
+  ipcMain.handle(IPC.GITHUB_LIST_PRS, async (_event, cwd: string) => {
+    return githubManager.listPrs(cwd)
+  })
+
+  ipcMain.handle(IPC.GITHUB_GET_PROJECT_STATUS, async (_event, cwd: string) => {
+    return githubManager.getProjectStatus(cwd)
   })
 
   // ── App settings ──────────────────────────────────────

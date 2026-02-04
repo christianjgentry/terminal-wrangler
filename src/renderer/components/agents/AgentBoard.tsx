@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/app-store'
 import { KANBAN_COLUMNS } from '../../lib/agent-status-colors'
 import { KanbanColumn } from './KanbanColumn'
 import { AgentCreateDialog } from './AgentCreateDialog'
+import { GitHubStatusBar } from './GitHubStatusBar'
 
 export function AgentBoard(): JSX.Element {
   const agents = useAgentStore((s) => s.agents)
@@ -62,6 +63,9 @@ export function AgentBoard(): JSX.Element {
           + New Agent
         </button>
       </div>
+
+      {/* GitHub status bar */}
+      <GitHubStatusBar />
 
       {/* Kanban columns */}
       {totalCount > 0 ? (

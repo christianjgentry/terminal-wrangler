@@ -1,7 +1,9 @@
 import type { AgentInfo } from '@shared/agent-types'
 import { agentStatusColors } from '../../lib/agent-status-colors'
+import { useGithubStore } from '../../stores/github-store'
 import { AgentStatusBadge } from './AgentStatusBadge'
 import { AgentMiniTerminal } from './AgentMiniTerminal'
+import { PrStatusSection } from './PrStatusSection'
 
 interface AgentCardProps {
   agent: AgentInfo
@@ -13,6 +15,7 @@ export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JS
   const color = agentStatusColors[agent.status]
   const isSubagent = !!agent.parentAgentId
   const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
+  const prInfo = useGithubStore((s) => s.prInfoByAgent[agent.id])
 
   const handleOpenTerminal = (): void => {
     // For subagents, open the parent's terminal
@@ -55,16 +58,7 @@ export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JS
               </span>
             )}
             {agent.detectedPrUrl && (
-              <a
-                href={agent.detectedPrUrl}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  window.open(agent.detectedPrUrl, '_blank')
-                }}
-                className="text-[9px] text-emerald-400 hover:text-emerald-300 truncate max-w-[120px]"
-              >
-                PR Link
-              </a>
+              <PrStatusSection prUrl={agent.detectedPrUrl} prInfo={prInfo} />
             )}
           </div>
           <div className="flex items-center gap-1">

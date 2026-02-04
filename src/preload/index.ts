@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppSettings, ProjectDocsData } from '@shared/types'
 import type { AgentInfo, CreateAgentRequest } from '@shared/agent-types'
+import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus } from '@shared/github-types'
 
 const api = {
   // Project
@@ -202,7 +203,29 @@ const api = {
     ipcRenderer.send(IPC.AGENT_TERMINAL_RESIZE, { agentId, cols, rows })
   },
   getAgentTerminalBuffer: (agentId: string): Promise<string> =>
-    ipcRenderer.invoke(IPC.AGENT_TERMINAL_GET_BUFFER, agentId)
+    ipcRenderer.invoke(IPC.AGENT_TERMINAL_GET_BUFFER, agentId),
+
+  // GitHub integration
+  getGithubAuthStatus: (): Promise<GhAuthStatus> =>
+    ipcRenderer.invoke(IPC.GITHUB_GET_AUTH_STATUS),
+  getGitRemote: (cwd: string): Promise<GitRemoteInfo | null> =>
+    ipcRenderer.invoke(IPC.GITHUB_GET_REMOTE, cwd),
+  getGithubPrInfo: (prUrl: string): Promise<PrInfo | null> =>
+    ipcRenderer.invoke(IPC.GITHUB_GET_PR_INFO, prUrl),
+  listGithubPrs: (cwd: string): Promise<PrInfo[]> =>
+    ipcRenderer.invoke(IPC.GITHUB_LIST_PRS, cwd),
+  getGithubProjectStatus: (cwd: string): Promise<GitHubProjectStatus> =>
+    ipcRenderer.invoke(IPC.GITHUB_GET_PROJECT_STATUS, cwd),
+  onGithubPrInfoUpdated: (
+    callback: (data: { agentId: string; prInfo: PrInfo }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; prInfo: PrInfo }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.GITHUB_PR_INFO_UPDATED, handler)
+    return () => ipcRenderer.removeListener(IPC.GITHUB_PR_INFO_UPDATED, handler)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

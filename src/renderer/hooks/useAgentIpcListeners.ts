@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { useAgentStore } from '../stores/agent-store'
 import { useAgentTerminalStore } from '../stores/agent-terminal-store'
+import { useGithubStore } from '../stores/github-store'
 import type { AgentStatus, AgentInfo } from '@shared/agent-types'
+import type { PrInfo } from '@shared/github-types'
 
 export function useAgentIpcListeners(): void {
   const addAgent = useAgentStore((s) => s.addAgent)
@@ -9,6 +11,7 @@ export function useAgentIpcListeners(): void {
   const addSubagent = useAgentStore((s) => s.addSubagent)
   const setPrUrl = useAgentStore((s) => s.setPrUrl)
   const appendData = useAgentTerminalStore((s) => s.appendData)
+  const setPrInfo = useGithubStore((s) => s.setPrInfo)
 
   useEffect(() => {
     const unsubStatus = window.api.onAgentStatusChanged(
@@ -19,8 +22,6 @@ export function useAgentIpcListeners(): void {
 
     const unsubExit = window.api.onAgentExit(
       (data: { agentId: string; exitCode: number | null }) => {
-        // Status is already set by the status detector / process exit handler
-        // This is just for additional cleanup if needed
         if (data.exitCode !== null && data.exitCode !== 0) {
           updateStatus(data.agentId, 'error')
         }
@@ -45,12 +46,19 @@ export function useAgentIpcListeners(): void {
       }
     )
 
+    const unsubPrInfo = window.api.onGithubPrInfoUpdated(
+      (data: { agentId: string; prInfo: PrInfo }) => {
+        setPrInfo(data.agentId, data.prInfo)
+      }
+    )
+
     return () => {
       unsubStatus()
       unsubExit()
       unsubSubagent()
       unsubPr()
       unsubTerminal()
+      unsubPrInfo()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, appendData])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, appendData, setPrInfo])
 }

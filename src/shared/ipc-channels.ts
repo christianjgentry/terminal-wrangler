@@ -61,5 +61,13 @@ export const IPC = {
   AGENT_TERMINAL_DATA: 'agent:terminal-data',
   AGENT_TERMINAL_INPUT: 'agent:terminal-input',
   AGENT_TERMINAL_RESIZE: 'agent:terminal-resize',
-  AGENT_TERMINAL_GET_BUFFER: 'agent:terminal-get-buffer'
+  AGENT_TERMINAL_GET_BUFFER: 'agent:terminal-get-buffer',
+
+  // GitHub integration
+  GITHUB_GET_AUTH_STATUS: 'github:get-auth-status',
+  GITHUB_GET_REMOTE: 'github:get-remote',
+  GITHUB_GET_PR_INFO: 'github:get-pr-info',
+  GITHUB_LIST_PRS: 'github:list-prs',
+  GITHUB_GET_PROJECT_STATUS: 'github:get-project-status',
+  GITHUB_PR_INFO_UPDATED: 'github:pr-info-updated'
 } as const

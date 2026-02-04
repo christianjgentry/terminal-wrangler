@@ -3,6 +3,8 @@ import { IPC } from '@shared/ipc-channels'
 import type { AgentStatus, AgentInfo, SubagentInfo, CreateAgentRequest } from '@shared/agent-types'
 import type { AgentProcessEvents } from './types'
 import { AgentProcess } from './agent-process'
+import { githubManager } from '../github-manager'
+import { detectGitRemote } from '../github-manager/git-remote'
 
 let agentCounter = 0
 
@@ -69,6 +71,7 @@ export class AgentProcessManager {
         if (info) {
           info.detectedPrUrl = prUrl
           this.broadcast(IPC.AGENT_PR_DETECTED, { agentId, prUrl })
+          githubManager.startPolling(agentId, prUrl)
         }
       }
     }
@@ -80,6 +83,8 @@ export class AgentProcessManager {
 
     this.agents.set(id, agentProcess)
 
+    const gitRemote = await detectGitRemote(request.cwd).catch(() => null)
+
     const info: AgentInfo = {
       id,
       name: request.name,
@@ -87,7 +92,8 @@ export class AgentProcessManager {
       cwd: request.cwd,
       status: 'idle',
       createdAt: Date.now(),
-      subagents: []
+      subagents: [],
+      gitRemote: gitRemote ?? undefined
     }
     this.agentInfos.set(id, info)
 
@@ -98,6 +104,7 @@ export class AgentProcessManager {
   }
 
   async stopAgent(agentId: string): Promise<void> {
+    githubManager.stopPolling(agentId)
     const process = this.agents.get(agentId)
     if (process) {
       await process.stop()
