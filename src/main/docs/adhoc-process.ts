@@ -1,6 +1,7 @@
 import type * as pty from 'node-pty'
 import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
+import { cleanEnvForPty } from '../pty-env'
 
 const KILL_TIMEOUT = 5000
 const OUTPUT_BUFFER_SIZE = 100 * 1024
@@ -50,10 +51,10 @@ export async function runCommand(
     rows: 30,
     cwd: cwd || projectPath,
     env: {
-      ...process.env,
+      ...cleanEnvForPty(),
       TERM: 'xterm-256color',
       FORCE_COLOR: '1'
-    } as Record<string, string>
+    }
   })
 
   const entry: AdhocEntry = {

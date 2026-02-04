@@ -73,6 +73,13 @@ export class AgentProcessManager {
           this.broadcast(IPC.AGENT_PR_DETECTED, { agentId, prUrl })
           githubManager.startPolling(agentId, prUrl)
         }
+      },
+      onContextUsageChanged: (agentId, used, max) => {
+        const info = this.agentInfos.get(agentId)
+        if (info) {
+          info.contextUsage = { used, max }
+          this.broadcast(IPC.AGENT_CONTEXT_USAGE, { agentId, used, max })
+        }
       }
     }
 

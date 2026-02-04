@@ -3,6 +3,7 @@ import { agentStatusColors } from '../../lib/agent-status-colors'
 import { useGithubStore } from '../../stores/github-store'
 import { AgentStatusBadge } from './AgentStatusBadge'
 import { AgentMiniTerminal } from './AgentMiniTerminal'
+import { ContextUsageBar } from './ContextUsageBar'
 import { PrStatusSection } from './PrStatusSection'
 
 interface AgentCardProps {
@@ -48,6 +49,11 @@ export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JS
 
         {/* Mini terminal */}
         {!isSubagent && <AgentMiniTerminal agentId={agent.id} />}
+
+        {/* Context usage bar */}
+        {agent.contextUsage && isActive && (
+          <ContextUsageBar used={agent.contextUsage.used} max={agent.contextUsage.max} />
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between">

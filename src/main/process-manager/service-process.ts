@@ -1,6 +1,7 @@
 import type * as pty from 'node-pty'
 import type { ServiceConfig, ServiceStatus } from '@shared/types'
 import { type ProcessEvents, OUTPUT_BUFFER_SIZE } from './types'
+import { cleanEnvForPty } from '../pty-env'
 
 const KILL_TIMEOUT = 5000
 
@@ -53,11 +54,11 @@ export class ServiceProcess {
         rows: 30,
         cwd: this.config.workingDirectory,
         env: {
-          ...process.env,
+          ...cleanEnvForPty(),
           ...this.config.env,
           TERM: 'xterm-256color',
           FORCE_COLOR: '1'
-        } as Record<string, string>
+        }
       })
 
       this.ptyProcess.onData((data: string) => {

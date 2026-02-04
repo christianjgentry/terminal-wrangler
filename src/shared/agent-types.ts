@@ -1,5 +1,10 @@
 export type AgentStatus = 'idle' | 'planning' | 'building' | 'pr_ready' | 'done' | 'error' | 'stopped'
 
+export interface ContextUsage {
+  used: number // in thousands (e.g., 45.2 = 45.2k tokens)
+  max: number  // in thousands (e.g., 200 = 200k tokens)
+}
+
 export interface SubagentInfo {
   id: string
   parentAgentId: string
@@ -22,6 +27,7 @@ export interface AgentInfo {
   prInfo?: import('./github-types').PrInfo
   gitRemote?: import('./github-types').GitRemoteInfo
   files?: string[]
+  contextUsage?: ContextUsage
 }
 
 export interface CreateAgentRequest {

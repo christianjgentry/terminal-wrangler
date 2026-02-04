@@ -10,6 +10,7 @@ interface StatusDetectorEvents {
   onStatusChange: (status: AgentStatus) => void
   onSubagentDetected: (taskDescription: string) => void
   onPrDetected: (prUrl: string) => void
+  onContextUsageChanged: (used: number, max: number) => void
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
@@ -24,6 +25,7 @@ export class StatusDetector {
   private pendingStatus: AgentStatus | null = null
   private detectedPrUrls = new Set<string>()
   private detectedSubagentTasks = new Set<string>()
+  private lastContextUsed = -1
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -43,6 +45,9 @@ export class StatusDetector {
 
     // Detect PR URLs
     this.detectPrUrls(recent)
+
+    // Detect context usage
+    this.detectContextUsage()
 
     // Determine status in priority order
     const detected = this.detectStatus(recent)
@@ -155,6 +160,34 @@ export class StatusDetector {
         this.detectedSubagentTasks.add(desc)
         this.events.onSubagentDetected(desc)
       }
+    }
+  }
+
+  private detectContextUsage(): void {
+    const buffer = this.contextBuffer
+    let used = -1
+    let max = 200
+
+    // Search full buffer for the last match of context usage patterns
+    // Primary: "45.2k ctx"
+    const primaryRegex = /(\d+(?:\.\d+)?)\s*k\s*ctx/g
+    let match: RegExpExecArray | null
+    while ((match = primaryRegex.exec(buffer)) !== null) {
+      used = parseFloat(match[1])
+    }
+
+    // Fallback: "45/200k" or "45.2k / 200k"
+    if (used === -1) {
+      const fallbackRegex = /(\d+(?:\.\d+)?)\s*k?\s*\/\s*(\d+(?:\.\d+)?)\s*k/g
+      while ((match = fallbackRegex.exec(buffer)) !== null) {
+        used = parseFloat(match[1])
+        max = parseFloat(match[2])
+      }
+    }
+
+    if (used !== -1 && used !== this.lastContextUsed) {
+      this.lastContextUsed = used
+      this.events.onContextUsageChanged(used, max)
     }
   }
 

@@ -6,6 +6,7 @@ export interface AgentProcessEvents {
   onExit: (agentId: string, exitCode: number | null) => void
   onSubagentDetected: (agentId: string, taskDescription: string) => void
   onPrDetected: (agentId: string, prUrl: string) => void
+  onContextUsageChanged: (agentId: string, used: number, max: number) => void
 }
 
 export interface AgentConfig {

@@ -191,6 +191,16 @@ const api = {
     ipcRenderer.on(IPC.AGENT_PR_DETECTED, handler)
     return () => ipcRenderer.removeListener(IPC.AGENT_PR_DETECTED, handler)
   },
+  onAgentContextUsage: (
+    callback: (data: { agentId: string; used: number; max: number }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; used: number; max: number }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_CONTEXT_USAGE, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_CONTEXT_USAGE, handler)
+  },
 
   // Agent terminal
   onAgentTerminalData: (

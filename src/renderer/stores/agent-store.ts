@@ -10,6 +10,7 @@ interface AgentState {
   updateStatus: (agentId: string, status: AgentStatus) => void
   addSubagent: (parentAgentId: string, subagent: AgentInfo) => void
   setPrUrl: (agentId: string, prUrl: string) => void
+  updateContextUsage: (agentId: string, used: number, max: number) => void
   setSelectedAgentId: (id: string | null) => void
   getAgentsByStatus: (status: AgentStatus) => AgentInfo[]
   setAgents: (agents: AgentInfo[]) => void
@@ -69,6 +70,18 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         agents: {
           ...state.agents,
           [agentId]: { ...agent, detectedPrUrl: prUrl }
+        }
+      }
+    }),
+
+  updateContextUsage: (agentId, used, max) =>
+    set((state) => {
+      const agent = state.agents[agentId]
+      if (!agent) return state
+      return {
+        agents: {
+          ...state.agents,
+          [agentId]: { ...agent, contextUsage: { used, max } }
         }
       }
     }),

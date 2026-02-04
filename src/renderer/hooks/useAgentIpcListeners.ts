@@ -10,6 +10,7 @@ export function useAgentIpcListeners(): void {
   const updateStatus = useAgentStore((s) => s.updateStatus)
   const addSubagent = useAgentStore((s) => s.addSubagent)
   const setPrUrl = useAgentStore((s) => s.setPrUrl)
+  const updateContextUsage = useAgentStore((s) => s.updateContextUsage)
   const appendData = useAgentTerminalStore((s) => s.appendData)
   const setPrInfo = useGithubStore((s) => s.setPrInfo)
 
@@ -40,6 +41,12 @@ export function useAgentIpcListeners(): void {
       }
     )
 
+    const unsubContextUsage = window.api.onAgentContextUsage(
+      (data: { agentId: string; used: number; max: number }) => {
+        updateContextUsage(data.agentId, data.used, data.max)
+      }
+    )
+
     const unsubTerminal = window.api.onAgentTerminalData(
       (data: { agentId: string; data: string }) => {
         appendData(data.agentId, data.data)
@@ -57,8 +64,9 @@ export function useAgentIpcListeners(): void {
       unsubExit()
       unsubSubagent()
       unsubPr()
+      unsubContextUsage()
       unsubTerminal()
       unsubPrInfo()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, appendData, setPrInfo])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, updateContextUsage, appendData, setPrInfo])
 }

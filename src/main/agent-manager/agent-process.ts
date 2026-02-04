@@ -2,6 +2,7 @@ import type * as pty from 'node-pty'
 import type { AgentStatus } from '@shared/agent-types'
 import { type AgentProcessEvents, type AgentConfig, OUTPUT_BUFFER_SIZE } from './types'
 import { StatusDetector } from './status-detector'
+import { cleanEnvForPty } from '../pty-env'
 
 const KILL_TIMEOUT = 5000
 
@@ -31,6 +32,9 @@ export class AgentProcess {
       },
       onPrDetected: (prUrl: string) => {
         this.events.onPrDetected(this.id, prUrl)
+      },
+      onContextUsageChanged: (used: number, max: number) => {
+        this.events.onContextUsageChanged(this.id, used, max)
       }
     })
   }
@@ -64,10 +68,10 @@ export class AgentProcess {
         rows: 30,
         cwd: this.config.cwd,
         env: {
-          ...process.env,
+          ...cleanEnvForPty(),
           TERM: 'xterm-256color',
           FORCE_COLOR: '1'
-        } as Record<string, string>
+        }
       })
 
       this.ptyProcess.onData((data: string) => {
