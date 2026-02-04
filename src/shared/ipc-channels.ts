@@ -51,6 +51,7 @@ export const IPC = {
   AGENT_CREATE: 'agent:create',
   AGENT_STOP: 'agent:stop',
   AGENT_STOP_ALL: 'agent:stop-all',
+  AGENT_REMOVE: 'agent:remove',
   AGENT_GET_ALL: 'agent:get-all',
   AGENT_GET_STATE: 'agent:get-state',
 

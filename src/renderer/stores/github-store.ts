@@ -6,6 +6,7 @@ interface GitHubState {
   projectStatus: GitHubProjectStatus | null
 
   setPrInfo: (agentId: string, prInfo: PrInfo) => void
+  removePrInfo: (agentId: string) => void
   setProjectStatus: (status: GitHubProjectStatus) => void
   getTrackedPrCount: () => number
 }
@@ -18,6 +19,12 @@ export const useGithubStore = create<GitHubState>((set, get) => ({
     set((state) => ({
       prInfoByAgent: { ...state.prInfoByAgent, [agentId]: prInfo }
     })),
+
+  removePrInfo: (agentId) =>
+    set((state) => {
+      const { [agentId]: _, ...rest } = state.prInfoByAgent
+      return { prInfoByAgent: rest }
+    }),
 
   setProjectStatus: (status) => set({ projectStatus: status }),
 

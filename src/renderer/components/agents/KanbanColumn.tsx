@@ -6,10 +6,11 @@ interface KanbanColumnProps {
   column: KanbanColumnType
   agents: AgentInfo[]
   onStopAgent: (agentId: string) => void
+  onRemoveAgent: (agentId: string) => void
   onOpenTerminal: (agentId: string) => void
 }
 
-export function KanbanColumn({ column, agents, onStopAgent, onOpenTerminal }: KanbanColumnProps): JSX.Element {
+export function KanbanColumn({ column, agents, onStopAgent, onRemoveAgent, onOpenTerminal }: KanbanColumnProps): JSX.Element {
   return (
     <div className="flex-1 min-w-[220px] max-w-[320px] flex flex-col">
       {/* Column header */}
@@ -31,6 +32,7 @@ export function KanbanColumn({ column, agents, onStopAgent, onOpenTerminal }: Ka
               key={agent.id}
               agent={agent}
               onStop={onStopAgent}
+              onRemove={onRemoveAgent}
               onOpenTerminal={onOpenTerminal}
             />
           ))

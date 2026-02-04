@@ -9,6 +9,14 @@ interface AgentTerminalViewProps {
 
 const agentTerminalInstances = new Map<string, { terminal: Terminal; fitAddon: FitAddon }>()
 
+export function disposeAgentTerminal(agentId: string): void {
+  const instance = agentTerminalInstances.get(agentId)
+  if (instance) {
+    instance.terminal.dispose()
+    agentTerminalInstances.delete(agentId)
+  }
+}
+
 export function AgentTerminalView({ agentId }: AgentTerminalViewProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)

@@ -1,13 +1,20 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useAgentStore } from '../../stores/agent-store'
+import { useAgentTerminalStore } from '../../stores/agent-terminal-store'
+import { useGithubStore } from '../../stores/github-store'
 import { useAppStore } from '../../stores/app-store'
 import { KANBAN_COLUMNS } from '../../lib/agent-status-colors'
 import { KanbanColumn } from './KanbanColumn'
 import { AgentCreateDialog } from './AgentCreateDialog'
 import { GitHubStatusBar } from './GitHubStatusBar'
+import { disposeAgentTerminal } from './AgentTerminalView'
 
 export function AgentBoard(): JSX.Element {
   const agents = useAgentStore((s) => s.agents)
+  const removeAgentFromStore = useAgentStore((s) => s.removeAgent)
+  const clearTerminalBuffer = useAgentTerminalStore((s) => s.clearBuffer)
+  const removePrInfo = useGithubStore((s) => s.removePrInfo)
+  const activeAgentTerminalTab = useAppStore((s) => s.activeAgentTerminalTab)
   const setActiveAgentTerminalTab = useAppStore((s) => s.setActiveAgentTerminalTab)
   const setAgentTerminalPanelOpen = useAppStore((s) => s.setAgentTerminalPanelOpen)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -25,6 +32,32 @@ export function AgentBoard(): JSX.Element {
       setAgentTerminalPanelOpen(true)
     },
     [setActiveAgentTerminalTab, setAgentTerminalPanelOpen]
+  )
+
+  const handleRemoveAgent = useCallback(
+    async (agentId: string) => {
+      const agent = agents[agentId]
+      const subagentIds = agent?.subagents.map((s) => s.id) || []
+      const allIds = [agentId, ...subagentIds]
+
+      // Backend cleanup (stops process, GitHub polling, removes from maps)
+      await window.api.removeAgent(agentId)
+
+      // Frontend cleanup for agent and all subagents
+      for (const id of allIds) {
+        removeAgentFromStore(id)
+        clearTerminalBuffer(id)
+        disposeAgentTerminal(id)
+        removePrInfo(id)
+      }
+
+      // Clear active terminal tab if it was a removed agent
+      if (activeAgentTerminalTab && allIds.includes(activeAgentTerminalTab)) {
+        setActiveAgentTerminalTab(null)
+        setAgentTerminalPanelOpen(false)
+      }
+    },
+    [agents, activeAgentTerminalTab, removeAgentFromStore, clearTerminalBuffer, removePrInfo, setActiveAgentTerminalTab, setAgentTerminalPanelOpen]
   )
 
   // Group agents by status, including stopped/error agents in the appropriate column
@@ -76,6 +109,7 @@ export function AgentBoard(): JSX.Element {
               column={col}
               agents={agentsByColumn[col.status] || []}
               onStopAgent={handleStopAgent}
+              onRemoveAgent={handleRemoveAgent}
               onOpenTerminal={handleOpenTerminal}
             />
           ))}

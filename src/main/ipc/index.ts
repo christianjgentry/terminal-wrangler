@@ -149,6 +149,10 @@ export function registerIpcHandlers(): void {
     await agentProcessManager.stopAgent(agentId)
   })
 
+  ipcMain.handle(IPC.AGENT_REMOVE, async (_event, agentId: string) => {
+    await agentProcessManager.removeAgent(agentId)
+  })
+
   ipcMain.handle(IPC.AGENT_STOP_ALL, async () => {
     await agentProcessManager.stopAll()
   })

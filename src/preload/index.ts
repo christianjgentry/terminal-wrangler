@@ -143,6 +143,8 @@ const api = {
     ipcRenderer.invoke(IPC.AGENT_CREATE, request),
   stopAgent: (agentId: string): Promise<void> =>
     ipcRenderer.invoke(IPC.AGENT_STOP, agentId),
+  removeAgent: (agentId: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.AGENT_REMOVE, agentId),
   stopAllAgents: (): Promise<void> =>
     ipcRenderer.invoke(IPC.AGENT_STOP_ALL),
   getAllAgents: (): Promise<AgentInfo[]> =>

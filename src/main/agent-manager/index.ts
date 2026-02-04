@@ -119,6 +119,35 @@ export class AgentProcessManager {
     }
   }
 
+  async removeAgent(agentId: string): Promise<void> {
+    const info = this.agentInfos.get(agentId)
+
+    // Collect subagent IDs before cleanup
+    const subagentIds = info?.subagents.map((s) => s.id) || []
+
+    // If this is a subagent, remove from parent's subagents array
+    if (info?.parentAgentId) {
+      const parentInfo = this.agentInfos.get(info.parentAgentId)
+      if (parentInfo) {
+        parentInfo.subagents = parentInfo.subagents.filter((s) => s.id !== agentId)
+      }
+    }
+
+    // Stop the agent process and GitHub polling
+    await this.stopAgent(agentId)
+
+    // Remove from maps
+    this.agents.delete(agentId)
+    this.agentInfos.delete(agentId)
+
+    // Remove all subagents
+    for (const subId of subagentIds) {
+      await this.stopAgent(subId)
+      this.agents.delete(subId)
+      this.agentInfos.delete(subId)
+    }
+  }
+
   async stopAll(): Promise<void> {
     await Promise.all(
       Array.from(this.agents.keys()).map((id) => this.stopAgent(id))

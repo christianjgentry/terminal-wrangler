@@ -10,10 +10,11 @@ import { PrStatusSection } from './PrStatusSection'
 interface AgentCardProps {
   agent: AgentInfo
   onStop: (agentId: string) => void
+  onRemove: (agentId: string) => void
   onOpenTerminal: (agentId: string) => void
 }
 
-export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JSX.Element {
+export function AgentCard({ agent, onStop, onRemove, onOpenTerminal }: AgentCardProps): JSX.Element {
   const color = agentStatusColors[agent.status]
   const isSubagent = !!agent.parentAgentId
   const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
@@ -95,6 +96,15 @@ export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JS
                 Stop
               </button>
             )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemove(agent.id)
+              }}
+              className="px-1.5 py-0.5 text-[9px] text-surface-500 hover:text-red-400 bg-surface-700 hover:bg-red-500/10 rounded transition-colors"
+            >
+              Remove
+            </button>
           </div>
         </div>
       </div>
