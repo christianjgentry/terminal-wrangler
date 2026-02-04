@@ -62,12 +62,15 @@ export const IPC = {
   AGENT_PR_DETECTED: 'agent:pr-detected',
   AGENT_CONTEXT_USAGE: 'agent:context-usage',
   AGENT_TASKS_CHANGED: 'agent:tasks-changed',
+  AGENT_PLAN_DETECTED: 'agent:plan-detected',
 
   // Agent terminal
   AGENT_TERMINAL_DATA: 'agent:terminal-data',
   AGENT_TERMINAL_INPUT: 'agent:terminal-input',
   AGENT_TERMINAL_RESIZE: 'agent:terminal-resize',
   AGENT_TERMINAL_GET_BUFFER: 'agent:terminal-get-buffer',
+  AGENT_GET_PLAN_CONTENT: 'agent:get-plan-content',
+  AGENT_SAVE_PLAN: 'agent:save-plan',
 
   // GitHub integration
   GITHUB_GET_AUTH_STATUS: 'github:get-auth-status',

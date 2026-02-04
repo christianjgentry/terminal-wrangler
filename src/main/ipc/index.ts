@@ -185,6 +185,14 @@ export function registerIpcHandlers(): void {
     return agentProcessManager.getBuffer(agentId)
   })
 
+  ipcMain.handle(IPC.AGENT_GET_PLAN_CONTENT, (_event, agentId: string) => {
+    return agentProcessManager.getPlanContent(agentId)
+  })
+
+  ipcMain.handle(IPC.AGENT_SAVE_PLAN, (_event, agentId: string) => {
+    return agentProcessManager.savePlan(agentId)
+  })
+
   // ── GitHub integration ──────────────────────────────
   ipcMain.handle(IPC.GITHUB_GET_AUTH_STATUS, async () => {
     return githubManager.getAuthStatus()

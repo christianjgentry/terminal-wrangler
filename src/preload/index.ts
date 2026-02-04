@@ -152,6 +152,10 @@ const api = {
     ipcRenderer.invoke(IPC.AGENT_GET_ALL),
   getAgentState: (agentId: string): Promise<AgentInfo | null> =>
     ipcRenderer.invoke(IPC.AGENT_GET_STATE, agentId),
+  getAgentPlanContent: (agentId: string): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.AGENT_GET_PLAN_CONTENT, agentId),
+  saveAgentPlan: (agentId: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.AGENT_SAVE_PLAN, agentId),
 
   // Agent events
   onAgentStatusChanged: (
@@ -213,6 +217,16 @@ const api = {
     ): void => callback(data)
     ipcRenderer.on(IPC.AGENT_TASKS_CHANGED, handler)
     return () => ipcRenderer.removeListener(IPC.AGENT_TASKS_CHANGED, handler)
+  },
+  onAgentPlanDetected: (
+    callback: (data: { agentId: string; planFilePath: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; planFilePath: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_PLAN_DETECTED, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_PLAN_DETECTED, handler)
   },
 
   // Agent terminal

@@ -7,6 +7,7 @@ interface StatusDetectorEvents {
   onPrDetected: (prUrl: string) => void
   onContextUsageChanged: (used: number, max: number) => void
   onTasksChanged: (tasks: AgentTask[]) => void
+  onPlanDetected: (planFilePath: string) => void
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
@@ -77,6 +78,7 @@ export class StatusDetector {
   private claudeIdToOurId = new Map<string, number>()
   private lastTaskScanOffset = 0
   private _isStopped = false
+  private detectedPlanFilePath: string | null = null
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -102,6 +104,9 @@ export class StatusDetector {
 
     // Detect tasks
     this.detectTasks()
+
+    // Detect plan file
+    this.detectPlanFile(recent)
 
     // Determine status in priority order
     const detected = this.detectStatus(recent)
@@ -271,6 +276,17 @@ export class StatusDetector {
       if (!this.detectedPrUrls.has(url)) {
         this.detectedPrUrls.add(url)
         this.events.onPrDetected(url)
+      }
+    }
+  }
+
+  private detectPlanFile(recent: string): void {
+    const planMatch = recent.match(/Wrote to\s+(\/[^\s]+\.claude\/plans\/[^\s]+\.md)/)
+    if (planMatch) {
+      const path = planMatch[1]
+      if (path !== this.detectedPlanFilePath) {
+        this.detectedPlanFilePath = path
+        this.events.onPlanDetected(path)
       }
     }
   }

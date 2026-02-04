@@ -40,6 +40,9 @@ export class AgentProcess {
       },
       onTasksChanged: (tasks) => {
         this.events.onTasksChanged(this.id, tasks)
+      },
+      onPlanDetected: (planFilePath) => {
+        this.events.onPlanDetected(this.id, planFilePath)
       }
     })
   }

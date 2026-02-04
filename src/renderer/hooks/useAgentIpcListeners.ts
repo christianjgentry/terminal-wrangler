@@ -10,6 +10,7 @@ export function useAgentIpcListeners(): void {
   const updateStatus = useAgentStore((s) => s.updateStatus)
   const addSubagent = useAgentStore((s) => s.addSubagent)
   const setPrUrl = useAgentStore((s) => s.setPrUrl)
+  const setPlanFilePath = useAgentStore((s) => s.setPlanFilePath)
   const updateContextUsage = useAgentStore((s) => s.updateContextUsage)
   const updateTasks = useAgentStore((s) => s.updateTasks)
   const appendData = useAgentTerminalStore((s) => s.appendData)
@@ -54,6 +55,12 @@ export function useAgentIpcListeners(): void {
       }
     )
 
+    const unsubPlan = window.api.onAgentPlanDetected(
+      (data: { agentId: string; planFilePath: string }) => {
+        setPlanFilePath(data.agentId, data.planFilePath)
+      }
+    )
+
     const unsubTerminal = window.api.onAgentTerminalData(
       (data: { agentId: string; data: string }) => {
         appendData(data.agentId, data.data)
@@ -75,6 +82,7 @@ export function useAgentIpcListeners(): void {
       unsubTasks()
       unsubTerminal()
       unsubPrInfo()
+      unsubPlan()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, updateContextUsage, updateTasks, appendData, setPrInfo])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, appendData, setPrInfo])
 }

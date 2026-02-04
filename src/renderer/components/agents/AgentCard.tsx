@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { AgentInfo } from '@shared/agent-types'
 import { agentStatusColors } from '../../lib/agent-status-colors'
 import { useGithubStore } from '../../stores/github-store'
@@ -7,6 +8,7 @@ import { AgentMiniTerminal } from './AgentMiniTerminal'
 import { AgentTaskList } from './AgentTaskList'
 import { ContextUsageBar } from './ContextUsageBar'
 import { PrStatusSection } from './PrStatusSection'
+import { PlanModal } from './PlanModal'
 
 interface AgentCardProps {
   agent: AgentInfo
@@ -22,6 +24,7 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
   const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
   const prInfo = useGithubStore((s) => s.prInfoByAgent[agent.id])
   const updateStatus = useAgentStore((s) => s.updateStatus)
+  const [showPlan, setShowPlan] = useState(false)
 
   const handleOpenTerminal = (): void => {
     // For subagents, open the parent's terminal
@@ -75,6 +78,17 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
               <span className="text-[9px] text-surface-500 bg-surface-700 px-1.5 py-0.5 rounded">
                 {agent.subagents.length} subtask{agent.subagents.length !== 1 ? 's' : ''}
               </span>
+            )}
+            {agent.planFilePath && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowPlan(true)
+                }}
+                className="text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 px-1.5 py-0.5 rounded transition-colors"
+              >
+                View Plan
+              </button>
             )}
             {agent.branch && (
               <span
@@ -137,6 +151,13 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
           </div>
         </div>
       </div>
+      {showPlan && (
+        <PlanModal
+          agentId={agent.id}
+          agentName={agent.name}
+          onClose={() => setShowPlan(false)}
+        />
+      )}
     </div>
   )
 }

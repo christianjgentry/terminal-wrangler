@@ -1,4 +1,5 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, dialog } from 'electron'
+import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '@shared/ipc-channels'
 import type { AgentStatus, AgentInfo, AgentTask, SubagentInfo, CreateAgentRequest } from '@shared/agent-types'
 import type { AgentProcessEvents } from './types'
@@ -88,6 +89,13 @@ export class AgentProcessManager {
         if (info) {
           info.tasks = tasks
           this.broadcast(IPC.AGENT_TASKS_CHANGED, { agentId, tasks })
+        }
+      },
+      onPlanDetected: (agentId, planFilePath) => {
+        const info = this.agentInfos.get(agentId)
+        if (info) {
+          info.planFilePath = planFilePath
+          this.broadcast(IPC.AGENT_PLAN_DETECTED, { agentId, planFilePath })
         }
       }
     }
@@ -194,6 +202,46 @@ export class AgentProcessManager {
 
   getAllAgents(): AgentInfo[] {
     return Array.from(this.agentInfos.values())
+  }
+
+  async getPlanContent(agentId: string): Promise<string | null> {
+    const info = this.agentInfos.get(agentId)
+    if (!info?.planFilePath) return null
+    try {
+      return await readFile(info.planFilePath, 'utf-8')
+    } catch {
+      return null
+    }
+  }
+
+  async savePlan(agentId: string): Promise<boolean> {
+    const info = this.agentInfos.get(agentId)
+    if (!info?.planFilePath) return false
+
+    let content: string
+    try {
+      content = await readFile(info.planFilePath, 'utf-8')
+    } catch {
+      return false
+    }
+
+    const window = BrowserWindow.getFocusedWindow()
+    if (!window) return false
+
+    const result = await dialog.showSaveDialog(window, {
+      title: 'Save Plan',
+      defaultPath: `${info.name}-plan.md`,
+      filters: [{ name: 'Markdown', extensions: ['md'] }]
+    })
+
+    if (result.canceled || !result.filePath) return false
+
+    try {
+      await writeFile(result.filePath, content, 'utf-8')
+      return true
+    } catch {
+      return false
+    }
   }
 
   updateAgentStatus(agentId: string, status: AgentStatus): void {

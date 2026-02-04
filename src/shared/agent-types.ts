@@ -33,6 +33,7 @@ export interface AgentInfo {
   parentAgentId?: string
   subagents: SubagentInfo[]
   detectedPrUrl?: string
+  planFilePath?: string
   prInfo?: import('./github-types').PrInfo
   gitRemote?: import('./github-types').GitRemoteInfo
   files?: string[]
