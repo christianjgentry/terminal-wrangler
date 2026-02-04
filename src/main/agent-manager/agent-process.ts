@@ -97,11 +97,14 @@ export class AgentProcess {
       // to let the shell initialize
       setTimeout(() => {
         if (this.ptyProcess) {
-          // Escape single quotes in the task for safe shell embedding
-          const escapedTask = this.config.task.replace(/'/g, "'\\''")
-          this.ptyProcess.write(`claude -p '${escapedTask}'\r`)
+          const sanitizedTask = this.config.task
+            .replace(/\r\n/g, ' ')
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, ' ')
+          const escapedTask = sanitizedTask.replace(/'/g, "'\\''")
+          this.ptyProcess.write(`claude --dangerously-skip-permissions '${escapedTask}'\r`)
         }
-      }, 300)
+      }, 500)
     } catch (err) {
       this._status = 'error'
       this.events.onStatusChange(this.id, 'error')
