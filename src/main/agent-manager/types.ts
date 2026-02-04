@@ -14,6 +14,7 @@ export interface AgentConfig {
   task: string
   cwd: string
   parentAgentId?: string
+  files?: string[]
 }
 
 export const OUTPUT_BUFFER_SIZE = 100 * 1024 // 100KB ring buffer

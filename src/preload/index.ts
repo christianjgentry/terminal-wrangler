@@ -1,10 +1,17 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppSettings, ProjectDocsData } from '@shared/types'
 import type { AgentInfo, CreateAgentRequest } from '@shared/agent-types'
 import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus } from '@shared/github-types'
 
 const api = {
+  // Dialog
+  openFileDialog: (defaultPath?: string): Promise<string[] | null> =>
+    ipcRenderer.invoke(IPC.DIALOG_OPEN_FILES, defaultPath),
+
+  // File utilities
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+
   // Project
   openProject: (): Promise<string | null> => ipcRenderer.invoke(IPC.PROJECT_OPEN),
   openRecentProject: (path: string): Promise<void> =>

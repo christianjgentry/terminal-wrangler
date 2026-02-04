@@ -21,10 +21,12 @@ export interface AgentInfo {
   detectedPrUrl?: string
   prInfo?: import('./github-types').PrInfo
   gitRemote?: import('./github-types').GitRemoteInfo
+  files?: string[]
 }
 
 export interface CreateAgentRequest {
   name: string
   task: string
   cwd: string
+  files?: string[]
 }

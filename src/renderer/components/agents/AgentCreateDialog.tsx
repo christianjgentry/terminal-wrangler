@@ -7,6 +7,13 @@ interface AgentCreateDialogProps {
   onClose: () => void
 }
 
+function displayPath(filePath: string, cwd: string): string {
+  if (cwd && filePath.startsWith(cwd + '/')) {
+    return filePath.slice(cwd.length + 1)
+  }
+  return filePath.split('/').pop() || filePath
+}
+
 export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JSX.Element | null {
   const projectPath = useAppStore((s) => s.projectPath)
   const addAgent = useAgentStore((s) => s.addAgent)
@@ -14,7 +21,63 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
   const [name, setName] = useState('')
   const [task, setTask] = useState('')
   const [cwd, setCwd] = useState(projectPath || '')
+  const [files, setFiles] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  const addFiles = useCallback((paths: string[]) => {
+    setFiles((prev) => {
+      const existing = new Set(prev)
+      const newPaths = paths.filter((p) => !existing.has(p))
+      return newPaths.length > 0 ? [...prev, ...newPaths] : prev
+    })
+  }, [])
+
+  const removeFile = useCallback((path: string) => {
+    setFiles((prev) => prev.filter((f) => f !== path))
+  }, [])
+
+  const handleBrowse = useCallback(async () => {
+    try {
+      const selected = await window.api.openFileDialog(cwd || undefined)
+      if (selected) {
+        addFiles(selected)
+      }
+    } catch (err) {
+      console.error('Failed to open file dialog:', err)
+    }
+  }, [cwd, addFiles])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setDragOver(false)
+
+      const droppedFiles = e.dataTransfer.files
+      const paths: string[] = []
+      for (let i = 0; i < droppedFiles.length; i++) {
+        const path = window.api.getPathForFile(droppedFiles[i])
+        if (path) paths.push(path)
+      }
+      if (paths.length > 0) {
+        addFiles(paths)
+      }
+    },
+    [addFiles]
+  )
 
   const handleCreate = useCallback(async () => {
     if (!name.trim() || !task.trim() || !cwd.trim()) return
@@ -24,19 +87,21 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
       const agent = await window.api.createAgent({
         name: name.trim(),
         task: task.trim(),
-        cwd: cwd.trim()
+        cwd: cwd.trim(),
+        files: files.length > 0 ? files : undefined
       })
       addAgent(agent)
       setName('')
       setTask('')
       setCwd(projectPath || '')
+      setFiles([])
       onClose()
     } catch (err) {
       console.error('Failed to create agent:', err)
     } finally {
       setCreating(false)
     }
-  }, [name, task, cwd, projectPath, addAgent, onClose])
+  }, [name, task, cwd, files, projectPath, addAgent, onClose])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -55,7 +120,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="bg-surface-900 border border-white/10 rounded-xl w-[480px] shadow-2xl"
+        className="bg-surface-900 border border-white/10 rounded-xl w-[480px] shadow-2xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
@@ -71,7 +136,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
         </div>
 
         {/* Form */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 overflow-y-auto">
           <div>
             <label className="block text-[10px] font-medium text-surface-400 uppercase tracking-wider mb-1.5">
               Name
@@ -97,6 +162,54 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
               rows={4}
               className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-surface-600 focus:outline-none focus:border-accent/50 resize-none"
             />
+          </div>
+
+          {/* Context Files */}
+          <div>
+            <label className="block text-[10px] font-medium text-surface-400 uppercase tracking-wider mb-1.5">
+              Context Files
+            </label>
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border border-dashed rounded-lg px-3 py-3 text-center transition-colors ${
+                dragOver
+                  ? 'border-accent bg-accent/10'
+                  : 'border-white/10 bg-surface-800'
+              }`}
+            >
+              <p className="text-xs text-surface-500 mb-2">
+                Drop files here or{' '}
+                <button
+                  type="button"
+                  onClick={handleBrowse}
+                  className="text-accent hover:text-accent-light underline"
+                >
+                  browse
+                </button>
+              </p>
+              {files.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2 justify-start">
+                  {files.map((filePath) => (
+                    <span
+                      key={filePath}
+                      title={filePath}
+                      className="inline-flex items-center gap-1 bg-surface-700 text-surface-300 text-[11px] font-mono px-2 py-0.5 rounded-md max-w-[200px]"
+                    >
+                      <span className="truncate">{displayPath(filePath, cwd)}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(filePath)}
+                        className="text-surface-500 hover:text-white flex-shrink-0 ml-0.5"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>

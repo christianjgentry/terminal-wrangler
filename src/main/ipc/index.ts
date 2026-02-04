@@ -14,6 +14,24 @@ import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
 
 export function registerIpcHandlers(): void {
+  // ── Dialog ──────────────────────────────────────────
+  ipcMain.handle(IPC.DIALOG_OPEN_FILES, async (event, defaultPath?: string) => {
+    const window = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow()
+    if (!window) return null
+
+    const result = await dialog.showOpenDialog(window, {
+      properties: ['openFile', 'multiSelections'],
+      title: 'Select Context Files',
+      defaultPath: defaultPath || undefined
+    })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null
+    }
+
+    return result.filePaths
+  })
+
   // ── Project ──────────────────────────────────────────
   ipcMain.handle(IPC.PROJECT_OPEN, async () => {
     const window = BrowserWindow.getFocusedWindow()

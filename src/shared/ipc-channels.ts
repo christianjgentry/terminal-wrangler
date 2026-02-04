@@ -6,6 +6,9 @@ export const IPC = {
   CONFIG_GENERATE: 'config:generate',
   CONFIG_SAVE: 'config:save',
 
+  // Dialog
+  DIALOG_OPEN_FILES: 'dialog:open-files',
+
   // Project
   PROJECT_OPEN: 'project:open',
   PROJECT_OPEN_RECENT: 'project:open-recent',

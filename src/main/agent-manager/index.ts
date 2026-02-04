@@ -77,7 +77,7 @@ export class AgentProcessManager {
     }
 
     const agentProcess = new AgentProcess(
-      { id, name: request.name, task: request.task, cwd: request.cwd },
+      { id, name: request.name, task: request.task, cwd: request.cwd, files: request.files },
       events
     )
 
@@ -93,7 +93,8 @@ export class AgentProcessManager {
       status: 'idle',
       createdAt: Date.now(),
       subagents: [],
-      gitRemote: gitRemote ?? undefined
+      gitRemote: gitRemote ?? undefined,
+      files: request.files
     }
     this.agentInfos.set(id, info)
 

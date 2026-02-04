@@ -102,7 +102,14 @@ export class AgentProcess {
             .replace(/\n/g, ' ')
             .replace(/\r/g, ' ')
           const escapedTask = sanitizedTask.replace(/'/g, "'\\''")
-          this.ptyProcess.write(`claude --dangerously-skip-permissions '${escapedTask}'\r`)
+          let cmd = `claude --dangerously-skip-permissions '${escapedTask}'`
+          if (this.config.files && this.config.files.length > 0) {
+            const escapedFiles = this.config.files
+              .map((f) => `'${f.replace(/'/g, "'\\''")}'`)
+              .join(' ')
+            cmd += ` ${escapedFiles}`
+          }
+          this.ptyProcess.write(`${cmd}\r`)
         }
       }, 500)
     } catch (err) {
