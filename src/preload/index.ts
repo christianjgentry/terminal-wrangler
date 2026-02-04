@@ -3,6 +3,7 @@ import { IPC } from '@shared/ipc-channels'
 import type { AppSettings, ProjectDocsData } from '@shared/types'
 import type { AgentInfo, AgentTask, CreateAgentRequest } from '@shared/agent-types'
 import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeResult } from '@shared/github-types'
+import type { SessionUsageData } from '@shared/session-usage-types'
 
 const api = {
   // Dialog
@@ -258,6 +259,24 @@ const api = {
     ): void => callback(data)
     ipcRenderer.on(IPC.GITHUB_PR_INFO_UPDATED, handler)
     return () => ipcRenderer.removeListener(IPC.GITHUB_PR_INFO_UPDATED, handler)
+  },
+
+  // Session usage
+  getSessionUsage: (): Promise<SessionUsageData | null> =>
+    ipcRenderer.invoke(IPC.SESSION_USAGE_GET),
+  refreshSessionUsage: (): Promise<SessionUsageData | null> =>
+    ipcRenderer.invoke(IPC.SESSION_USAGE_REFRESH),
+  setSessionUsageApiKey: (apiKey: string | null): Promise<SessionUsageData | null> =>
+    ipcRenderer.invoke(IPC.SESSION_USAGE_SET_API_KEY, apiKey),
+  onSessionUsageChanged: (
+    callback: (data: SessionUsageData | null) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: SessionUsageData | null
+    ): void => callback(data)
+    ipcRenderer.on(IPC.SESSION_USAGE_CHANGED, handler)
+    return () => ipcRenderer.removeListener(IPC.SESSION_USAGE_CHANGED, handler)
   }
 }
 

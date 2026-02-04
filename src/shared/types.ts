@@ -55,6 +55,7 @@ export interface AppSettings {
   terminalPanelHeight?: number
   sidebarWidth?: number
   docsPanelWidth?: number
+  anthropicApiKey?: string
 }
 
 export interface DetectedScript {

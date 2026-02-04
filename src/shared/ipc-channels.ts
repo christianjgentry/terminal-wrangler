@@ -77,5 +77,11 @@ export const IPC = {
   GITHUB_GET_PROJECT_STATUS: 'github:get-project-status',
   GITHUB_MERGE_PR: 'github:merge-pr',
   GITHUB_GET_PR_DIFF: 'github:get-pr-diff',
-  GITHUB_PR_INFO_UPDATED: 'github:pr-info-updated'
+  GITHUB_PR_INFO_UPDATED: 'github:pr-info-updated',
+
+  // Session usage
+  SESSION_USAGE_GET: 'session-usage:get',
+  SESSION_USAGE_REFRESH: 'session-usage:refresh',
+  SESSION_USAGE_CHANGED: 'session-usage:changed',
+  SESSION_USAGE_SET_API_KEY: 'session-usage:set-api-key'
 } as const

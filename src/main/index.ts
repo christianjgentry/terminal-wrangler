@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc'
 import { processManager } from './process-manager'
 import { agentProcessManager } from './agent-manager'
 import { githubManager } from './github-manager'
+import { sessionUsageManager } from './session-usage-manager'
 import { configLoader } from './config'
 
 let mainWindow: BrowserWindow | null = null
@@ -47,6 +48,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerIpcHandlers()
+  sessionUsageManager.startPolling()
   createWindow()
 
   app.on('activate', () => {
@@ -59,6 +61,7 @@ app.whenReady().then(() => {
 app.on('before-quit', async (event) => {
   event.preventDefault()
   try {
+    sessionUsageManager.stopPolling()
     githubManager.stopAllPolling()
     await agentProcessManager.stopAll()
     await processManager.stopAll()

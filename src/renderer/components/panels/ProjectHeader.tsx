@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/app-store'
 import { useServiceStore } from '../../stores/service-store'
 import { useAgentStore } from '../../stores/agent-store'
 import type { ActiveView } from '../../stores/app-store'
+import { SessionUsageIndicator } from '../shared/SessionUsageIndicator'
 
 interface ProjectHeaderProps {
   onStartAll?: () => void
@@ -66,7 +67,9 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
         </button>
       </div>
 
-      <div className="flex-1" />
+      <div className="flex-1 flex justify-end mr-2">
+        <SessionUsageIndicator />
+      </div>
 
       <div className="no-drag flex items-center gap-1.5">
         {activeView === 'services' && (

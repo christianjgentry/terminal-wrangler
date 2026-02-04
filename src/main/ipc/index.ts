@@ -7,6 +7,7 @@ import { configGenerator } from '../config/generator'
 import { processManager } from '../process-manager'
 import { agentProcessManager } from '../agent-manager'
 import { githubManager } from '../github-manager'
+import { sessionUsageManager } from '../session-usage-manager'
 import { appStore } from '../store'
 import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
@@ -211,6 +212,24 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.GITHUB_GET_PR_DIFF, async (_event, prUrl: string) => {
     return githubManager.getPrDiff(prUrl)
+  })
+
+  // ── Session usage ──────────────────────────────────────
+  ipcMain.handle(IPC.SESSION_USAGE_GET, async () => {
+    return sessionUsageManager.getUsage()
+  })
+
+  ipcMain.handle(IPC.SESSION_USAGE_REFRESH, async () => {
+    return sessionUsageManager.refresh()
+  })
+
+  ipcMain.handle(IPC.SESSION_USAGE_SET_API_KEY, async (_event, apiKey: string | null) => {
+    if (apiKey) {
+      appStore.set('anthropicApiKey', apiKey)
+    } else {
+      appStore.delete('anthropicApiKey' as keyof AppSettings)
+    }
+    return sessionUsageManager.refresh()
   })
 
   // ── App settings ──────────────────────────────────────
