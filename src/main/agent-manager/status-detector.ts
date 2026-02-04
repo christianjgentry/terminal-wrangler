@@ -1,10 +1,5 @@
 import type { AgentStatus } from '@shared/agent-types'
-
-// Strip ANSI escape codes from terminal output
-function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
-}
+import { cleanTerminalOutput } from '@shared/strip-ansi'
 
 interface StatusDetectorEvents {
   onStatusChange: (status: AgentStatus) => void
@@ -14,8 +9,58 @@ interface StatusDetectorEvents {
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
-const RECENT_WINDOW = 500 // chars to check for pattern matching
+const RECENT_WINDOW = 1500 // chars to check for pattern matching
+const EXTENDED_WINDOW = 3000 // larger window for building detection when in planning
 const DEBOUNCE_MS = 2000
+
+// Forward-only status progression ranks.
+// Higher rank = further along. Terminal states (done, error, stopped) always apply.
+const STATUS_RANK: Record<AgentStatus, number> = {
+  idle: 0,
+  planning: 1,
+  building: 2,
+  pr_ready: 3,
+  done: 4,
+  error: 4,
+  stopped: 4
+}
+
+const TERMINAL_STATUSES: Set<AgentStatus> = new Set(['done', 'error', 'stopped'])
+
+// --- Pattern helpers ---
+
+function matchesBuilding(text: string): boolean {
+  return (
+    // Tool invocations: "Write(" or "Write src/..."
+    /\b(?:Write|Edit|MultiEdit)[\s(]/.test(text) ||
+    // Past-tense tool results
+    /\b(?:Wrote to|Updated|Created|Edited|Modified)\s/.test(text) ||
+    // Bash tool
+    /\bBash[\s(]/.test(text) ||
+    // Package manager commands
+    /\b(?:npm|yarn|pnpm)\s+(?:install|run|test|build)\b/.test(text) ||
+    // Git operations
+    /\bgit\s+(?:add|commit|push)\b/.test(text) ||
+    // Test runners
+    /\b(?:Running|Ran)\b.*\btest/i.test(text) ||
+    /\b(?:pytest|jest|vitest|mocha|cargo\s+test)\b/.test(text) ||
+    // File creation
+    /Creating file/i.test(text)
+  )
+}
+
+function matchesPlanning(text: string): boolean {
+  return (
+    // Read/search tool invocations
+    /\b(?:Read|Glob|Grep|Ls|WebSearch|WebFetch)[\s(]/.test(text) ||
+    // Descriptive planning verbs
+    /\b(?:Searching|Analyzing|Reading|Exploring|Examining)\b/.test(text) ||
+    // Explicit plan
+    /\bPlan:/i.test(text) ||
+    // Thinking/reasoning indicators
+    /\b(?:Thinking|Reasoning)\b/.test(text)
+  )
+}
 
 export class StatusDetector {
   private contextBuffer = ''
@@ -32,7 +77,7 @@ export class StatusDetector {
   }
 
   feed(rawData: string): void {
-    const cleaned = stripAnsi(rawData)
+    const cleaned = cleanTerminalOutput(rawData)
     this.contextBuffer += cleaned
     if (this.contextBuffer.length > CONTEXT_BUFFER_SIZE) {
       this.contextBuffer = this.contextBuffer.slice(-CONTEXT_BUFFER_SIZE)
@@ -86,27 +131,21 @@ export class StatusDetector {
     }
 
     // Priority 3: Building
-    if (
-      /Write\(/.test(recent) ||
-      /Edit\(/.test(recent) ||
-      /Creating file/i.test(recent) ||
-      /npm install/i.test(recent) ||
-      /git add/.test(recent) ||
-      /git commit/.test(recent) ||
-      /Running.*test/i.test(recent)
-    ) {
+    if (matchesBuilding(recent)) {
       return 'building'
     }
 
+    // Priority 3b: Extended building check when stuck in planning
+    // Look at a larger window to catch tool uses that scrolled past the recent window
+    if (this.currentStatus === 'planning') {
+      const extended = this.contextBuffer.slice(-EXTENDED_WINDOW)
+      if (matchesBuilding(extended)) {
+        return 'building'
+      }
+    }
+
     // Priority 4: Planning
-    if (
-      /Read\(/.test(recent) ||
-      /Glob\(/.test(recent) ||
-      /Grep\(/.test(recent) ||
-      /Searching/i.test(recent) ||
-      /Analyzing/i.test(recent) ||
-      /Plan:/i.test(recent)
-    ) {
+    if (matchesPlanning(recent)) {
       return 'planning'
     }
 
@@ -114,25 +153,40 @@ export class StatusDetector {
   }
 
   private transitionTo(newStatus: AgentStatus): void {
-    // Immediate transitions
-    if (
-      (this.currentStatus === 'idle' && newStatus === 'planning') ||
-      newStatus === 'done' ||
-      newStatus === 'error'
-    ) {
+    // Terminal states always apply immediately
+    if (TERMINAL_STATUSES.has(newStatus)) {
       this.clearDebounce()
       this.setStatus(newStatus)
       return
     }
 
-    // Debounced transitions: planning<->building, building->pr_ready
+    // Forward-only: reject transitions that would go backward
+    const newRank = STATUS_RANK[newStatus]
+    const currentRank = STATUS_RANK[this.currentStatus]
+    if (newRank <= currentRank && !TERMINAL_STATUSES.has(this.currentStatus)) {
+      return
+    }
+
+    // Immediate transition from idle → planning
+    if (this.currentStatus === 'idle' && newStatus === 'planning') {
+      this.clearDebounce()
+      this.setStatus(newStatus)
+      return
+    }
+
+    // Debounced transitions: planning→building, building→pr_ready
     if (this.pendingStatus === newStatus) return
 
     this.clearDebounce()
     this.pendingStatus = newStatus
     this.debounceTimer = setTimeout(() => {
       if (this.pendingStatus) {
-        this.setStatus(this.pendingStatus)
+        // Re-check forward-only at commit time
+        const pendingRank = STATUS_RANK[this.pendingStatus]
+        const curRank = STATUS_RANK[this.currentStatus]
+        if (pendingRank > curRank || TERMINAL_STATUSES.has(this.pendingStatus)) {
+          this.setStatus(this.pendingStatus)
+        }
         this.pendingStatus = null
       }
     }, DEBOUNCE_MS)

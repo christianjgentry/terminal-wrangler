@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { cleanTerminalOutput } from '@shared/strip-ansi'
 import { useAgentTerminalStore } from '../../stores/agent-terminal-store'
 
 interface AgentMiniTerminalProps {
@@ -6,17 +7,11 @@ interface AgentMiniTerminalProps {
   lines?: number
 }
 
-// Strip ANSI escape codes for display
-function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
-}
-
 export function AgentMiniTerminal({ agentId, lines = 4 }: AgentMiniTerminalProps): JSX.Element {
   const buffer = useAgentTerminalStore((s) => s.buffers[agentId] || '')
 
   const displayLines = useMemo(() => {
-    const cleaned = stripAnsi(buffer)
+    const cleaned = cleanTerminalOutput(buffer)
     const allLines = cleaned.split('\n').filter((l) => l.trim().length > 0)
     return allLines.slice(-lines)
   }, [buffer, lines])
