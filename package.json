@@ -7,7 +7,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "rebuild": "electron-rebuild",
+    "rebuild": "electron-rebuild -f -w node-pty",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
@@ -29,6 +29,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/dagre": "^0.7.52",
     "@types/js-yaml": "^4.0.9",
     "@types/react": "^18.3.12",
