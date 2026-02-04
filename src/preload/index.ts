@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppSettings, ProjectDocsData } from '@shared/types'
 import type { AgentInfo, CreateAgentRequest } from '@shared/agent-types'
-import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus } from '@shared/github-types'
+import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 
 const api = {
   // Dialog
@@ -233,6 +233,10 @@ const api = {
     ipcRenderer.invoke(IPC.GITHUB_LIST_PRS, cwd),
   getGithubProjectStatus: (cwd: string): Promise<GitHubProjectStatus> =>
     ipcRenderer.invoke(IPC.GITHUB_GET_PROJECT_STATUS, cwd),
+  mergePr: (prUrl: string): Promise<MergeResult> =>
+    ipcRenderer.invoke(IPC.GITHUB_MERGE_PR, prUrl),
+  getPrDiff: (prUrl: string): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.GITHUB_GET_PR_DIFF, prUrl),
   onGithubPrInfoUpdated: (
     callback: (data: { agentId: string; prInfo: PrInfo }) => void
   ): (() => void) => {

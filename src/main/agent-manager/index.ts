@@ -145,6 +145,14 @@ export class AgentProcessManager {
     return Array.from(this.agentInfos.values())
   }
 
+  updateAgentStatus(agentId: string, status: AgentStatus): void {
+    const info = this.agentInfos.get(agentId)
+    if (info) {
+      info.status = status
+      this.broadcast(IPC.AGENT_STATUS_CHANGED, { agentId, status })
+    }
+  }
+
   private broadcast(channel: string, data: unknown): void {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {

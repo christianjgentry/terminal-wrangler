@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import type { PrInfo } from '@shared/github-types'
+import { PrDiffModal } from './PrDiffModal'
 
 interface PrStatusSectionProps {
   prUrl: string
   prInfo?: PrInfo
+  agentId: string
+  onMerged?: () => void
 }
 
 const STATE_BADGE: Record<string, { label: string; className: string }> = {
@@ -24,7 +28,24 @@ const REVIEW_BADGE: Record<string, { label: string; className: string }> = {
   REVIEW_REQUIRED: { label: 'Review', className: 'bg-yellow-500/20 text-yellow-400' }
 }
 
-export function PrStatusSection({ prUrl, prInfo }: PrStatusSectionProps): JSX.Element {
+export function PrStatusSection({ prUrl, prInfo, agentId, onMerged }: PrStatusSectionProps): JSX.Element {
+  const [merging, setMerging] = useState(false)
+  const [mergeError, setMergeError] = useState<string | null>(null)
+  const [showDiff, setShowDiff] = useState(false)
+
+  const handleMerge = async (): Promise<void> => {
+    setMerging(true)
+    setMergeError(null)
+    const result = await window.api.mergePr(prUrl)
+    setMerging(false)
+    if (result.success) {
+      onMerged?.()
+    } else {
+      setMergeError(result.error ?? 'Merge failed')
+      setTimeout(() => setMergeError(null), 5000)
+    }
+  }
+
   if (!prInfo) {
     return (
       <a
@@ -43,6 +64,11 @@ export function PrStatusSection({ prUrl, prInfo }: PrStatusSectionProps): JSX.El
   const state = STATE_BADGE[prInfo.state] ?? STATE_BADGE.OPEN
   const checks = CHECKS_BADGE[prInfo.checksStatus] ?? CHECKS_BADGE.UNKNOWN
   const review = prInfo.reviewDecision ? REVIEW_BADGE[prInfo.reviewDecision] : null
+
+  const canMerge =
+    prInfo.state === 'OPEN' &&
+    prInfo.mergeable !== 'CONFLICTING' &&
+    prInfo.checksStatus !== 'FAILING'
 
   return (
     <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
@@ -75,6 +101,39 @@ export function PrStatusSection({ prUrl, prInfo }: PrStatusSectionProps): JSX.El
           </span>
         )}
       </div>
+
+      {/* Action buttons */}
+      {prInfo.state === 'OPEN' && (
+        <div className="flex items-center gap-1 pt-0.5">
+          <button
+            onClick={handleMerge}
+            disabled={!canMerge || merging}
+            className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {merging ? 'Merging...' : 'Merge'}
+          </button>
+          <button
+            onClick={() => setShowDiff(true)}
+            className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-surface-700 text-surface-300 hover:bg-surface-600"
+          >
+            Diff
+          </button>
+          <button
+            onClick={() => window.open(prInfo.url, '_blank')}
+            className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-surface-700 text-surface-300 hover:bg-surface-600"
+          >
+            Open
+          </button>
+        </div>
+      )}
+
+      {mergeError && (
+        <p className="text-[8px] text-red-400 mt-0.5">{mergeError}</p>
+      )}
+
+      {showDiff && (
+        <PrDiffModal prUrl={prUrl} onClose={() => setShowDiff(false)} />
+      )}
     </div>
   )
 }

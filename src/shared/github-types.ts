@@ -30,3 +30,8 @@ export interface GitHubProjectStatus {
   remote: GitRemoteInfo | null
   ghAvailable: boolean
 }
+
+export interface MergeResult {
+  success: boolean
+  error?: string
+}

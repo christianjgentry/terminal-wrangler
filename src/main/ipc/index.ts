@@ -201,6 +201,14 @@ export function registerIpcHandlers(): void {
     return githubManager.getProjectStatus(cwd)
   })
 
+  ipcMain.handle(IPC.GITHUB_MERGE_PR, async (_event, prUrl: string) => {
+    return githubManager.mergePr(prUrl)
+  })
+
+  ipcMain.handle(IPC.GITHUB_GET_PR_DIFF, async (_event, prUrl: string) => {
+    return githubManager.getPrDiff(prUrl)
+  })
+
   // ── App settings ──────────────────────────────────────
   ipcMain.handle(IPC.APP_GET_SETTINGS, () => {
     return {
@@ -221,6 +229,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.APP_GET_RECENT_PROJECTS, () => {
     return appStore.get('recentProjects', [])
   })
+
+  // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge
+  githubManager.onPrMerged = (agentId) => {
+    agentProcessManager.updateAgentStatus(agentId, 'done')
+  }
 }
 
 function startConfigWatcher(projectPath: string): void {

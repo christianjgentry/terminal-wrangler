@@ -1,6 +1,7 @@
 import type { AgentInfo } from '@shared/agent-types'
 import { agentStatusColors } from '../../lib/agent-status-colors'
 import { useGithubStore } from '../../stores/github-store'
+import { useAgentStore } from '../../stores/agent-store'
 import { AgentStatusBadge } from './AgentStatusBadge'
 import { AgentMiniTerminal } from './AgentMiniTerminal'
 import { ContextUsageBar } from './ContextUsageBar'
@@ -17,6 +18,7 @@ export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JS
   const isSubagent = !!agent.parentAgentId
   const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
   const prInfo = useGithubStore((s) => s.prInfoByAgent[agent.id])
+  const updateStatus = useAgentStore((s) => s.updateStatus)
 
   const handleOpenTerminal = (): void => {
     // For subagents, open the parent's terminal
@@ -64,7 +66,12 @@ export function AgentCard({ agent, onStop, onOpenTerminal }: AgentCardProps): JS
               </span>
             )}
             {agent.detectedPrUrl && (
-              <PrStatusSection prUrl={agent.detectedPrUrl} prInfo={prInfo} />
+              <PrStatusSection
+                prUrl={agent.detectedPrUrl}
+                prInfo={prInfo}
+                agentId={agent.id}
+                onMerged={() => updateStatus(agent.id, 'done')}
+              />
             )}
           </div>
           <div className="flex items-center gap-1">

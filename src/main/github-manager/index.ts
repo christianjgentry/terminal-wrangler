@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
-import type { PrInfo, GhAuthStatus, GitHubProjectStatus } from '@shared/github-types'
+import type { PrInfo, GhAuthStatus, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 import { ghExec, isGhAvailable } from './gh-cli'
 import { detectGitRemote } from './git-remote'
 
@@ -14,6 +14,7 @@ interface PollingEntry {
 
 export class GitHubManager {
   private polling = new Map<string, PollingEntry>()
+  onPrMerged: ((agentId: string) => void) | null = null
 
   async getAuthStatus(): Promise<GhAuthStatus> {
     const result = await ghExec(['auth', 'status', '--show-token'])
@@ -105,6 +106,20 @@ export class GitHubManager {
     }
   }
 
+  async mergePr(prUrl: string): Promise<MergeResult> {
+    const result = await ghExec(['pr', 'merge', prUrl, '--squash', '--delete-branch'])
+    if (result.exitCode !== 0) {
+      return { success: false, error: result.stderr.trim() || 'Merge failed' }
+    }
+    return { success: true }
+  }
+
+  async getPrDiff(prUrl: string): Promise<string | null> {
+    const result = await ghExec(['pr', 'diff', prUrl])
+    if (result.exitCode !== 0) return null
+    return result.stdout
+  }
+
   startPolling(agentId: string, prUrl: string): void {
     // Stop existing poll for this agent if any
     this.stopPolling(agentId)
@@ -143,6 +158,11 @@ export class GitHubManager {
     if (!prInfo) return
 
     this.broadcast(IPC.GITHUB_PR_INFO_UPDATED, { agentId, prInfo })
+
+    if (prInfo.state === 'MERGED') {
+      this.stopPolling(agentId)
+      this.onPrMerged?.(agentId)
+    }
   }
 
   private broadcast(channel: string, data: unknown): void {
