@@ -4,7 +4,9 @@ import { type AgentProcessEvents, type AgentConfig, OUTPUT_BUFFER_SIZE } from '.
 import { StatusDetector } from './status-detector'
 import { cleanEnvForPty } from '../pty-env'
 
-const KILL_TIMEOUT = 5000
+const CTRL_C_TIMEOUT = 2000
+const SIGTERM_TIMEOUT = 3000
+const SIGKILL_TIMEOUT = 1000
 
 export class AgentProcess {
   readonly id: string
@@ -135,29 +137,52 @@ export class AgentProcess {
       return
     }
 
-    try {
-      this.ptyProcess.kill('SIGTERM')
-    } catch {
-      // Process may already be dead
-    }
+    // Stage 1: Ctrl+C — sends SIGINT to the foreground process group
+    this.ptyProcess.write('\x03')
+    if (await this.waitForExit(CTRL_C_TIMEOUT)) return
 
-    await new Promise<void>((resolve) => {
+    // Stage 2: Second Ctrl+C in case the first was absorbed by a prompt
+    if (this.ptyProcess) this.ptyProcess.write('\x03')
+    if (await this.waitForExit(CTRL_C_TIMEOUT)) return
+
+    // Stage 3: SIGTERM
+    if (this.ptyProcess) {
+      try {
+        this.ptyProcess.kill('SIGTERM')
+      } catch {
+        // Process may already be dead
+      }
+    }
+    if (await this.waitForExit(SIGTERM_TIMEOUT)) return
+
+    // Stage 4: SIGKILL — force kill
+    if (this.ptyProcess) {
+      try {
+        this.ptyProcess.kill('SIGKILL')
+      } catch {
+        // Ignore
+      }
+    }
+    await this.waitForExit(SIGKILL_TIMEOUT)
+  }
+
+  private waitForExit(timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!this.ptyProcess) {
+        resolve(true)
+        return
+      }
+
       const timeout = setTimeout(() => {
-        if (this.ptyProcess) {
-          try {
-            this.ptyProcess.kill('SIGKILL')
-          } catch {
-            // Ignore
-          }
-        }
-        resolve()
-      }, KILL_TIMEOUT)
+        clearInterval(checkInterval)
+        resolve(false)
+      }, timeoutMs)
 
       const checkInterval = setInterval(() => {
         if (!this.ptyProcess) {
           clearTimeout(timeout)
           clearInterval(checkInterval)
-          resolve()
+          resolve(true)
         }
       }, 100)
     })

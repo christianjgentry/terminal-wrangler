@@ -13,9 +13,10 @@ interface AgentCardProps {
   onStop: (agentId: string) => void
   onRemove: (agentId: string) => void
   onOpenTerminal: (agentId: string) => void
+  onRerun: (agentId: string) => void
 }
 
-export function AgentCard({ agent, onStop, onRemove, onOpenTerminal }: AgentCardProps): JSX.Element {
+export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: AgentCardProps): JSX.Element {
   const color = agentStatusColors[agent.status]
   const isSubagent = !!agent.parentAgentId
   const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
@@ -103,6 +104,17 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal }: AgentCard
                 className="px-1.5 py-0.5 text-[9px] text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
               >
                 Stop
+              </button>
+            )}
+            {!isActive && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRerun(agent.id)
+                }}
+                className="px-1.5 py-0.5 text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 rounded transition-colors"
+              >
+                Re-run
               </button>
             )}
             <button
