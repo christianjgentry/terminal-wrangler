@@ -41,6 +41,7 @@ export interface AgentInfo {
   tasks?: AgentTask[]
   branch?: string
   processAlive?: boolean
+  jiraIssueKey?: string
 }
 
 export interface CreateAgentRequest {
@@ -51,4 +52,5 @@ export interface CreateAgentRequest {
   planMode?: boolean
   createBranch?: boolean
   branchName?: string
+  jiraIssueKey?: string
 }

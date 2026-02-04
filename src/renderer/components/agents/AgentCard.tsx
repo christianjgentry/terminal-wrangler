@@ -76,6 +76,11 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
         {/* Footer */}
         <div className="flex items-center justify-between gap-1 flex-wrap">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+            {agent.jiraIssueKey && (
+              <span className="text-[9px] text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded font-mono">
+                {agent.jiraIssueKey}
+              </span>
+            )}
             {agent.subagents.length > 0 && (
               <span className="text-[9px] text-surface-500 bg-surface-700 px-1.5 py-0.5 rounded">
                 {agent.subagents.length} subtask{agent.subagents.length !== 1 ? 's' : ''}

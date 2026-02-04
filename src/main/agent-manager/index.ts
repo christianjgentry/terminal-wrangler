@@ -20,6 +20,10 @@ export class AgentProcessManager {
   private agents = new Map<string, AgentProcess>()
   private agentInfos = new Map<string, AgentInfo>()
 
+  // Jira lifecycle callbacks (wired from ipc/index.ts)
+  onJiraStatusUpdate?: (agentId: string, issueKey: string, status: AgentStatus) => void
+  onJiraPrDetected?: (issueKey: string, prUrl: string) => void
+
   async createAgent(request: CreateAgentRequest): Promise<AgentInfo> {
     const id = generateAgentId()
 
@@ -29,6 +33,9 @@ export class AgentProcessManager {
         if (info) {
           info.status = status
           this.broadcast(IPC.AGENT_STATUS_CHANGED, { agentId, status })
+          if (info.jiraIssueKey && this.onJiraStatusUpdate) {
+            this.onJiraStatusUpdate(agentId, info.jiraIssueKey, status)
+          }
         }
       },
       onData: (agentId, data) => {
@@ -79,6 +86,9 @@ export class AgentProcessManager {
           info.detectedPrUrl = prUrl
           this.broadcast(IPC.AGENT_PR_DETECTED, { agentId, prUrl })
           githubManager.startPolling(agentId, prUrl)
+          if (info.jiraIssueKey && this.onJiraPrDetected) {
+            this.onJiraPrDetected(info.jiraIssueKey, prUrl)
+          }
         }
       },
       onContextUsageChanged: (agentId, used, max) => {
@@ -136,12 +146,18 @@ export class AgentProcessManager {
       gitRemote: gitRemote ?? undefined,
       files: request.files,
       branch,
-      processAlive: true
+      processAlive: true,
+      jiraIssueKey: request.jiraIssueKey
     }
     this.agentInfos.set(id, info)
 
     await agentProcess.start()
     info.pid = agentProcess.pid
+
+    // Fire Jira pickup lifecycle event
+    if (info.jiraIssueKey && this.onJiraStatusUpdate) {
+      this.onJiraStatusUpdate(id, info.jiraIssueKey, 'idle')
+    }
 
     return info
   }

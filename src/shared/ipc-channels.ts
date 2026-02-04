@@ -88,5 +88,20 @@ export const IPC = {
   SESSION_USAGE_GET: 'session-usage:get',
   SESSION_USAGE_REFRESH: 'session-usage:refresh',
   SESSION_USAGE_CHANGED: 'session-usage:changed',
-  SESSION_USAGE_SET_API_KEY: 'session-usage:set-api-key'
+  SESSION_USAGE_SET_API_KEY: 'session-usage:set-api-key',
+
+  // Jira integration
+  JIRA_GET_CREDENTIALS: 'jira:get-credentials',
+  JIRA_SET_CREDENTIALS: 'jira:set-credentials',
+  JIRA_TEST_CONNECTION: 'jira:test-connection',
+  JIRA_GET_PROJECT_KEY: 'jira:get-project-key',
+  JIRA_SET_PROJECT_KEY: 'jira:set-project-key',
+  JIRA_GET_EPICS: 'jira:get-epics',
+  JIRA_GET_STORIES_BY_EPIC: 'jira:get-stories-by-epic',
+  JIRA_GET_ISSUE: 'jira:get-issue',
+  JIRA_REFRESH_EPICS: 'jira:refresh-epics',
+  JIRA_REFRESH_STORIES: 'jira:refresh-stories',
+  JIRA_ADD_COMMENT: 'jira:add-comment',
+  JIRA_TRANSITION_ISSUE: 'jira:transition-issue',
+  JIRA_GET_TRANSITIONS: 'jira:get-transitions'
 } as const

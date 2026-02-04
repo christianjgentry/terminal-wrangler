@@ -11,8 +11,10 @@ import { sessionUsageManager } from '../session-usage-manager'
 import { appStore } from '../store'
 import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
+import { jiraManager } from '../jira-manager'
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
+import type { JiraCredentials } from '@shared/jira-types'
 
 export function registerIpcHandlers(): void {
   // ── Dialog ──────────────────────────────────────────
@@ -269,9 +271,73 @@ export function registerIpcHandlers(): void {
     return appStore.get('recentProjects', [])
   })
 
+  // ── Jira integration ──────────────────────────────────
+  ipcMain.handle(IPC.JIRA_GET_CREDENTIALS, () => {
+    return jiraManager.getCredentials()
+  })
+
+  ipcMain.handle(IPC.JIRA_SET_CREDENTIALS, (_event, creds: JiraCredentials) => {
+    jiraManager.setCredentials(creds)
+  })
+
+  ipcMain.handle(IPC.JIRA_TEST_CONNECTION, async (_event, creds: JiraCredentials) => {
+    return jiraManager.testConnection(creds)
+  })
+
+  ipcMain.handle(IPC.JIRA_GET_PROJECT_KEY, () => {
+    return jiraManager.getProjectKey()
+  })
+
+  ipcMain.handle(IPC.JIRA_SET_PROJECT_KEY, (_event, key: string) => {
+    jiraManager.setProjectKey(key)
+  })
+
+  ipcMain.handle(IPC.JIRA_GET_EPICS, async (_event, projectKey: string) => {
+    return jiraManager.getEpics(projectKey)
+  })
+
+  ipcMain.handle(IPC.JIRA_GET_STORIES_BY_EPIC, async (_event, epicKey: string) => {
+    return jiraManager.getStoriesByEpic(epicKey)
+  })
+
+  ipcMain.handle(IPC.JIRA_GET_ISSUE, async (_event, issueKey: string) => {
+    return jiraManager.getIssue(issueKey)
+  })
+
+  ipcMain.handle(IPC.JIRA_REFRESH_EPICS, async (_event, projectKey: string) => {
+    return jiraManager.refreshEpics(projectKey)
+  })
+
+  ipcMain.handle(IPC.JIRA_REFRESH_STORIES, async (_event, epicKey: string) => {
+    return jiraManager.refreshStoriesByEpic(epicKey)
+  })
+
+  ipcMain.handle(IPC.JIRA_ADD_COMMENT, async (_event, issueKey: string, adfBody: unknown) => {
+    return jiraManager.addComment(issueKey, adfBody)
+  })
+
+  ipcMain.handle(IPC.JIRA_TRANSITION_ISSUE, async (_event, issueKey: string, transitionId: string) => {
+    return jiraManager.transitionIssue(issueKey, transitionId)
+  })
+
+  ipcMain.handle(IPC.JIRA_GET_TRANSITIONS, async (_event, issueKey: string) => {
+    return jiraManager.getTransitions(issueKey)
+  })
+
   // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge
   githubManager.onPrMerged = (agentId) => {
     agentProcessManager.updateAgentStatus(agentId, 'done')
+  }
+
+  // Wire up AgentProcessManager → JiraManager lifecycle callbacks
+  agentProcessManager.onJiraStatusUpdate = (agentId, issueKey, status) => {
+    jiraManager.postLifecycleComment(issueKey, status)
+    if (status === 'building') jiraManager.tryTransition(issueKey, 'In Progress')
+    if (status === 'done') jiraManager.tryTransition(issueKey, 'Done')
+  }
+
+  agentProcessManager.onJiraPrDetected = (issueKey, prUrl) => {
+    jiraManager.postLifecycleComment(issueKey, 'pr', prUrl)
   }
 }
 

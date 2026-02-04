@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/app-store'
 import { useServiceStore } from '../../stores/service-store'
 import { useAgentStore } from '../../stores/agent-store'
 import { useDocsStore } from '../../stores/docs-store'
+import { useJiraStore } from '../../stores/jira-store'
 import type { ActiveView } from '../../stores/app-store'
 import { SessionUsageIndicator } from '../shared/SessionUsageIndicator'
 
@@ -29,6 +30,10 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const runningCommands = useDocsStore((s) => s.runningCommands)
   const addRunningCommand = useDocsStore((s) => s.addRunningCommand)
   const removeRunningCommand = useDocsStore((s) => s.removeRunningCommand)
+  const jiraSelectedProjectKey = useJiraStore((s) => s.selectedProjectKey)
+  const jiraSelectedStoryKeys = useJiraStore((s) => s.selectedStoryKeys)
+  const refreshJiraEpics = useJiraStore((s) => s.refreshEpics)
+  const setJiraSpawnDialogOpen = useJiraStore((s) => s.setSpawnDialogOpen)
 
   const runningCount = Object.values(services).filter(
     (s) => s.status === 'running' || s.status === 'starting'
@@ -90,6 +95,16 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
           {agentCount > 0 && (
             <span className="ml-1 text-surface-500">{agentCount}</span>
           )}
+        </button>
+        <button
+          onClick={() => setActiveView('jira')}
+          className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
+            activeView === 'jira'
+              ? 'text-white bg-surface-700'
+              : 'text-surface-400 hover:text-surface-300'
+          }`}
+        >
+          Jira
         </button>
       </div>
 
@@ -176,6 +191,32 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
             >
               Terminal
             </button>
+          </>
+        )}
+
+        {activeView === 'jira' && (
+          <>
+            {jiraSelectedProjectKey && (
+              <span className="text-[10px] font-mono text-accent-light bg-accent/10 px-2 py-0.5 rounded">
+                {jiraSelectedProjectKey}
+              </span>
+            )}
+            {jiraSelectedProjectKey && (
+              <button
+                onClick={() => refreshJiraEpics()}
+                className="px-2.5 py-1 text-[10px] font-medium text-surface-400 bg-white/5 hover:bg-white/10 rounded transition-colors"
+              >
+                Refresh
+              </button>
+            )}
+            {jiraSelectedStoryKeys.size > 0 && (
+              <button
+                onClick={() => setJiraSpawnDialogOpen(true)}
+                className="px-2.5 py-1 text-[10px] font-medium text-white bg-accent hover:bg-accent-dark rounded transition-colors"
+              >
+                Spawn Agents ({jiraSelectedStoryKeys.size})
+              </button>
+            )}
           </>
         )}
       </div>

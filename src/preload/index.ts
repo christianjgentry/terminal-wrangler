@@ -4,6 +4,7 @@ import type { AppSettings, ProjectDocsData } from '@shared/types'
 import type { AgentInfo, AgentTask, CreateAgentRequest } from '@shared/agent-types'
 import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 import type { SessionUsageData } from '@shared/session-usage-types'
+import type { JiraCredentials, JiraConnectionResult, JiraEpic, JiraStory, JiraTransition } from '@shared/jira-types'
 
 const api = {
   // Dialog
@@ -295,7 +296,35 @@ const api = {
     ): void => callback(data)
     ipcRenderer.on(IPC.SESSION_USAGE_CHANGED, handler)
     return () => ipcRenderer.removeListener(IPC.SESSION_USAGE_CHANGED, handler)
-  }
+  },
+
+  // Jira integration
+  getJiraCredentials: (): Promise<JiraCredentials | null> =>
+    ipcRenderer.invoke(IPC.JIRA_GET_CREDENTIALS),
+  setJiraCredentials: (creds: JiraCredentials): Promise<void> =>
+    ipcRenderer.invoke(IPC.JIRA_SET_CREDENTIALS, creds),
+  testJiraConnection: (creds: JiraCredentials): Promise<JiraConnectionResult> =>
+    ipcRenderer.invoke(IPC.JIRA_TEST_CONNECTION, creds),
+  getJiraProjectKey: (): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.JIRA_GET_PROJECT_KEY),
+  setJiraProjectKey: (key: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.JIRA_SET_PROJECT_KEY, key),
+  getJiraEpics: (projectKey: string): Promise<JiraEpic[]> =>
+    ipcRenderer.invoke(IPC.JIRA_GET_EPICS, projectKey),
+  getJiraStoriesByEpic: (epicKey: string): Promise<JiraStory[]> =>
+    ipcRenderer.invoke(IPC.JIRA_GET_STORIES_BY_EPIC, epicKey),
+  getJiraIssue: (issueKey: string): Promise<JiraStory | null> =>
+    ipcRenderer.invoke(IPC.JIRA_GET_ISSUE, issueKey),
+  refreshJiraEpics: (projectKey: string): Promise<JiraEpic[]> =>
+    ipcRenderer.invoke(IPC.JIRA_REFRESH_EPICS, projectKey),
+  refreshJiraStories: (epicKey: string): Promise<JiraStory[]> =>
+    ipcRenderer.invoke(IPC.JIRA_REFRESH_STORIES, epicKey),
+  addJiraComment: (issueKey: string, adfBody: unknown): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.JIRA_ADD_COMMENT, issueKey, adfBody),
+  transitionJiraIssue: (issueKey: string, transitionId: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.JIRA_TRANSITION_ISSUE, issueKey, transitionId),
+  getJiraTransitions: (issueKey: string): Promise<JiraTransition[]> =>
+    ipcRenderer.invoke(IPC.JIRA_GET_TRANSITIONS, issueKey)
 }
 
 contextBridge.exposeInMainWorld('api', api)

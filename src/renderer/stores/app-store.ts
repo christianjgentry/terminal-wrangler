@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { RecentProject } from '@shared/types'
 
-export type ActiveView = 'services' | 'agents'
+export type ActiveView = 'services' | 'agents' | 'jira'
 
 interface AppState {
   projectPath: string | null

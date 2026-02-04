@@ -56,6 +56,8 @@ export interface AppSettings {
   sidebarWidth?: number
   docsPanelWidth?: number
   anthropicApiKey?: string
+  jiraCredentials?: import('@shared/jira-types').JiraCredentials
+  jiraProjectKey?: string
 }
 
 export interface DetectedScript {

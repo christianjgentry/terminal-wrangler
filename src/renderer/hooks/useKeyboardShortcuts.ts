@@ -44,6 +44,12 @@ export function useKeyboardShortcuts(): void {
         setActiveView('agents')
       }
 
+      // Cmd+3 — Jira view
+      if (isMeta && e.key === '3') {
+        e.preventDefault()
+        setActiveView('jira')
+      }
+
       // Escape — close sidebar
       if (e.key === 'Escape') {
         if (sidebarOpen) {

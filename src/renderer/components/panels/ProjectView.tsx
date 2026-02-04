@@ -8,6 +8,7 @@ import { TerminalPanel } from '../terminal/TerminalPanel'
 import { DocsPanel } from '../docs/DocsPanel'
 import { AgentBoard } from '../agents/AgentBoard'
 import { AgentTerminalPanel } from '../agents/AgentTerminalPanel'
+import { JiraBrowser } from '../jira/JiraBrowser'
 
 export function ProjectView(): JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
@@ -29,7 +30,7 @@ export function ProjectView(): JSX.Element {
     <div className="h-screen w-screen flex flex-col">
       <ProjectHeader onStartAll={handleStartAll} onStopAll={handleStopAll} />
 
-      {activeView === 'services' ? (
+      {activeView === 'services' && (
         <>
           <div className="flex-1 flex overflow-hidden">
             {/* Docs panel (left) */}
@@ -53,7 +54,9 @@ export function ProjectView(): JSX.Element {
           {/* Terminal panel */}
           {terminalPanelOpen && <TerminalPanel height={terminalPanelHeight} />}
         </>
-      ) : (
+      )}
+
+      {activeView === 'agents' && (
         <>
           <div className="flex-1 flex overflow-hidden">
             <AgentBoard />
@@ -62,6 +65,12 @@ export function ProjectView(): JSX.Element {
           {/* Agent terminal panel */}
           {agentTerminalPanelOpen && <AgentTerminalPanel height={terminalPanelHeight} />}
         </>
+      )}
+
+      {activeView === 'jira' && (
+        <div className="flex-1 flex overflow-hidden">
+          <JiraBrowser />
+        </div>
       )}
     </div>
   )
