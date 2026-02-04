@@ -22,6 +22,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
   const [task, setTask] = useState('')
   const [cwd, setCwd] = useState(projectPath || '')
   const [files, setFiles] = useState<string[]>([])
+  const [planMode, setPlanMode] = useState(false)
   const [creating, setCreating] = useState(false)
   const [dragOver, setDragOver] = useState(false)
 
@@ -88,20 +89,22 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
         name: name.trim(),
         task: task.trim(),
         cwd: cwd.trim(),
-        files: files.length > 0 ? files : undefined
+        files: files.length > 0 ? files : undefined,
+        planMode: planMode || undefined
       })
       addAgent(agent)
       setName('')
       setTask('')
       setCwd(projectPath || '')
       setFiles([])
+      setPlanMode(false)
       onClose()
     } catch (err) {
       console.error('Failed to create agent:', err)
     } finally {
       setCreating(false)
     }
-  }, [name, task, cwd, files, projectPath, addAgent, onClose])
+  }, [name, task, cwd, files, planMode, projectPath, addAgent, onClose])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -162,6 +165,28 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
               rows={4}
               className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-surface-600 focus:outline-none focus:border-accent/50 resize-none"
             />
+          </div>
+
+          {/* Plan Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-medium text-surface-400 uppercase tracking-wider">
+              Plan first
+            </label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={planMode}
+              onClick={() => setPlanMode((v) => !v)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                planMode ? 'bg-accent' : 'bg-surface-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                  planMode ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Context Files */}

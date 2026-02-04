@@ -106,7 +106,11 @@ export class AgentProcess {
       // to let the shell initialize
       setTimeout(() => {
         if (this.ptyProcess) {
-          const sanitizedTask = this.config.task
+          let taskText = this.config.task
+          if (this.config.planMode) {
+            taskText = `Before implementing anything, first use the EnterPlanMode tool to create a detailed implementation plan. Once the plan is approved, proceed with implementation.\n\n${taskText}`
+          }
+          const sanitizedTask = taskText
             .replace(/\r\n/g, ' ')
             .replace(/\n/g, ' ')
             .replace(/\r/g, ' ')

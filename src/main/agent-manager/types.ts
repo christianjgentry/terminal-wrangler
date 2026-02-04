@@ -17,6 +17,7 @@ export interface AgentConfig {
   cwd: string
   parentAgentId?: string
   files?: string[]
+  planMode?: boolean
 }
 
 export const OUTPUT_BUFFER_SIZE = 100 * 1024 // 100KB ring buffer

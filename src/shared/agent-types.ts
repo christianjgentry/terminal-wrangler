@@ -45,4 +45,5 @@ export interface CreateAgentRequest {
   task: string
   cwd: string
   files?: string[]
+  planMode?: boolean
 }
