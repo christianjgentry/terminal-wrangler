@@ -129,14 +129,11 @@ export class AgentProcess {
   }
 
   async stop(): Promise<void> {
+    this.statusDetector.setStopped()
+
     if (!this.ptyProcess) {
-      this._status = 'stopped'
-      this.events.onStatusChange(this.id, 'stopped')
       return
     }
-
-    this._status = 'stopped'
-    this.events.onStatusChange(this.id, 'stopped')
 
     try {
       this.ptyProcess.kill('SIGTERM')

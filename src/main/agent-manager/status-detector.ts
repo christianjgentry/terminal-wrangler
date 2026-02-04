@@ -76,6 +76,7 @@ export class StatusDetector {
   private detectedTasks = new Map<string, AgentTask>()
   private claudeIdToOurId = new Map<string, number>()
   private lastTaskScanOffset = 0
+  private _isStopped = false
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -113,22 +114,32 @@ export class StatusDetector {
     return this.currentStatus
   }
 
+  setStopped(): void {
+    this._isStopped = true
+    this.clearDebounce()
+    this.setStatus('stopped')
+  }
+
   setExited(exitCode: number | null): void {
     this.clearDebounce()
+
+    // If manually stopped, don't override with done/error
+    if (this._isStopped) return
+
     if (exitCode === 0 || exitCode === null) {
-      this.setStatus('done')
+      // If a PR was detected, stay at pr_ready (wait for merge)
+      if (this.detectedPrUrls.size > 0) {
+        this.setStatus('pr_ready')
+      } else {
+        this.setStatus('done')
+      }
     } else {
       this.setStatus('error')
     }
   }
 
   private detectStatus(recent: string): AgentStatus | null {
-    // Priority 1: Done
-    if (/Total cost:/i.test(recent) || /tokens used/i.test(recent)) {
-      return 'done'
-    }
-
-    // Priority 2: PR Ready
+    // Priority 1: PR Ready
     if (
       /github\.com\/[^\s]+\/pull\/\d+/.test(recent) ||
       /gh pr create/.test(recent) ||

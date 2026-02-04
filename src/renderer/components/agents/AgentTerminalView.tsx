@@ -83,6 +83,7 @@ export function AgentTerminalView({ agentId }: AgentTerminalViewProps): JSX.Elem
           instance!.fitAddon.fit()
           const { cols, rows } = instance!.terminal
           window.api.resizeAgentTerminal(agentId, cols, rows)
+          instance!.terminal.focus()
         } catch {
           // Ignore fit errors during mount
         }
