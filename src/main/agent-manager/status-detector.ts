@@ -88,7 +88,10 @@ export class StatusDetector {
     const cleaned = cleanTerminalOutput(rawData)
     this.contextBuffer += cleaned
     if (this.contextBuffer.length > CONTEXT_BUFFER_SIZE) {
+      const overflow = this.contextBuffer.length - CONTEXT_BUFFER_SIZE
       this.contextBuffer = this.contextBuffer.slice(-CONTEXT_BUFFER_SIZE)
+      // Adjust task scan offset so detectTasks() doesn't skip new content
+      this.lastTaskScanOffset = Math.max(0, this.lastTaskScanOffset - overflow)
     }
 
     const recent = this.contextBuffer.slice(-RECENT_WINDOW)
