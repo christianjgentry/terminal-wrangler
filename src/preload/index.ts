@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppSettings, ProjectDocsData } from '@shared/types'
+import type { AgentInfo, CreateAgentRequest } from '@shared/agent-types'
 
 const api = {
   // Project
@@ -127,7 +128,81 @@ const api = {
     ): void => callback(data)
     ipcRenderer.on(IPC.DOCS_COMMAND_EXIT, handler)
     return () => ipcRenderer.removeListener(IPC.DOCS_COMMAND_EXIT, handler)
-  }
+  },
+
+  // Agent management
+  createAgent: (request: CreateAgentRequest): Promise<AgentInfo> =>
+    ipcRenderer.invoke(IPC.AGENT_CREATE, request),
+  stopAgent: (agentId: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.AGENT_STOP, agentId),
+  stopAllAgents: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.AGENT_STOP_ALL),
+  getAllAgents: (): Promise<AgentInfo[]> =>
+    ipcRenderer.invoke(IPC.AGENT_GET_ALL),
+  getAgentState: (agentId: string): Promise<AgentInfo | null> =>
+    ipcRenderer.invoke(IPC.AGENT_GET_STATE, agentId),
+
+  // Agent events
+  onAgentStatusChanged: (
+    callback: (data: { agentId: string; status: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; status: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_STATUS_CHANGED, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_STATUS_CHANGED, handler)
+  },
+  onAgentExit: (
+    callback: (data: { agentId: string; exitCode: number | null }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; exitCode: number | null }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_EXIT, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_EXIT, handler)
+  },
+  onAgentSubagentDetected: (
+    callback: (data: { agentId: string; subagent: AgentInfo }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; subagent: AgentInfo }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_SUBAGENT_DETECTED, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_SUBAGENT_DETECTED, handler)
+  },
+  onAgentPrDetected: (
+    callback: (data: { agentId: string; prUrl: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; prUrl: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_PR_DETECTED, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_PR_DETECTED, handler)
+  },
+
+  // Agent terminal
+  onAgentTerminalData: (
+    callback: (data: { agentId: string; data: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; data: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_TERMINAL_DATA, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_TERMINAL_DATA, handler)
+  },
+  sendAgentTerminalInput: (agentId: string, data: string): void => {
+    ipcRenderer.send(IPC.AGENT_TERMINAL_INPUT, { agentId, data })
+  },
+  resizeAgentTerminal: (agentId: string, cols: number, rows: number): void => {
+    ipcRenderer.send(IPC.AGENT_TERMINAL_RESIZE, { agentId, cols, rows })
+  },
+  getAgentTerminalBuffer: (agentId: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.AGENT_TERMINAL_GET_BUFFER, agentId)
 }
 
 contextBridge.exposeInMainWorld('api', api)

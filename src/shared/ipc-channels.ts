@@ -42,5 +42,24 @@ export const IPC = {
   DOCS_COMMAND_OUTPUT: 'docs:command-output',
   DOCS_COMMAND_EXIT: 'docs:command-exit',
   DOCS_COMMAND_INPUT: 'docs:command-input',
-  DOCS_COMMAND_RESIZE: 'docs:command-resize'
+  DOCS_COMMAND_RESIZE: 'docs:command-resize',
+
+  // Agent management
+  AGENT_CREATE: 'agent:create',
+  AGENT_STOP: 'agent:stop',
+  AGENT_STOP_ALL: 'agent:stop-all',
+  AGENT_GET_ALL: 'agent:get-all',
+  AGENT_GET_STATE: 'agent:get-state',
+
+  // Agent events (main -> renderer)
+  AGENT_STATUS_CHANGED: 'agent:status-changed',
+  AGENT_EXIT: 'agent:exit',
+  AGENT_SUBAGENT_DETECTED: 'agent:subagent-detected',
+  AGENT_PR_DETECTED: 'agent:pr-detected',
+
+  // Agent terminal
+  AGENT_TERMINAL_DATA: 'agent:terminal-data',
+  AGENT_TERMINAL_INPUT: 'agent:terminal-input',
+  AGENT_TERMINAL_RESIZE: 'agent:terminal-resize',
+  AGENT_TERMINAL_GET_BUFFER: 'agent:terminal-get-buffer'
 } as const

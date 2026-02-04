@@ -3,6 +3,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { processManager } from './process-manager'
+import { agentProcessManager } from './agent-manager'
 import { configLoader } from './config'
 
 let mainWindow: BrowserWindow | null = null
@@ -57,6 +58,7 @@ app.whenReady().then(() => {
 app.on('before-quit', async (event) => {
   event.preventDefault()
   try {
+    await agentProcessManager.stopAll()
     await processManager.stopAll()
     await configLoader.stopWatching()
   } catch {

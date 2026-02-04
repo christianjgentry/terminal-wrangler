@@ -5,10 +5,12 @@ import { IPC } from '@shared/ipc-channels'
 import { configLoader } from '../config'
 import { configGenerator } from '../config/generator'
 import { processManager } from '../process-manager'
+import { agentProcessManager } from '../agent-manager'
 import { appStore } from '../store'
 import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
 import type { AppSettings, RecentProject } from '@shared/types'
+import type { CreateAgentRequest } from '@shared/agent-types'
 
 export function registerIpcHandlers(): void {
   // ── Project ──────────────────────────────────────────
@@ -118,6 +120,46 @@ export function registerIpcHandlers(): void {
       adhocProcess.resize(commandId, cols, rows)
     }
   )
+
+  // ── Agent management ──────────────────────────────────
+  ipcMain.handle(IPC.AGENT_CREATE, async (_event, request: CreateAgentRequest) => {
+    return agentProcessManager.createAgent(request)
+  })
+
+  ipcMain.handle(IPC.AGENT_STOP, async (_event, agentId: string) => {
+    await agentProcessManager.stopAgent(agentId)
+  })
+
+  ipcMain.handle(IPC.AGENT_STOP_ALL, async () => {
+    await agentProcessManager.stopAll()
+  })
+
+  ipcMain.handle(IPC.AGENT_GET_ALL, () => {
+    return agentProcessManager.getAllAgents()
+  })
+
+  ipcMain.handle(IPC.AGENT_GET_STATE, (_event, agentId: string) => {
+    return agentProcessManager.getAgentState(agentId)
+  })
+
+  // ── Agent terminal ──────────────────────────────────
+  ipcMain.on(
+    IPC.AGENT_TERMINAL_INPUT,
+    (_event, { agentId, data }: { agentId: string; data: string }) => {
+      agentProcessManager.writeInput(agentId, data)
+    }
+  )
+
+  ipcMain.on(
+    IPC.AGENT_TERMINAL_RESIZE,
+    (_event, { agentId, cols, rows }: { agentId: string; cols: number; rows: number }) => {
+      agentProcessManager.resizeTerminal(agentId, cols, rows)
+    }
+  )
+
+  ipcMain.handle(IPC.AGENT_TERMINAL_GET_BUFFER, (_event, agentId: string) => {
+    return agentProcessManager.getBuffer(agentId)
+  })
 
   // ── App settings ──────────────────────────────────────
   ipcMain.handle(IPC.APP_GET_SETTINGS, () => {

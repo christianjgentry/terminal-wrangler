@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { RecentProject } from '@shared/types'
 
+export type ActiveView = 'services' | 'agents'
+
 interface AppState {
   projectPath: string | null
   projectName: string | null
@@ -14,6 +16,9 @@ interface AppState {
   configError: string | null
   docsPanelOpen: boolean
   docsPanelWidth: number
+  activeView: ActiveView
+  activeAgentTerminalTab: string | null
+  agentTerminalPanelOpen: boolean
 
   setProjectPath: (path: string | null) => void
   setProjectName: (name: string | null) => void
@@ -27,6 +32,9 @@ interface AppState {
   setConfigError: (error: string | null) => void
   setDocsPanelOpen: (open: boolean) => void
   setDocsPanelWidth: (width: number) => void
+  setActiveView: (view: ActiveView) => void
+  setActiveAgentTerminalTab: (id: string | null) => void
+  setAgentTerminalPanelOpen: (open: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -42,6 +50,9 @@ export const useAppStore = create<AppState>((set) => ({
   configError: null,
   docsPanelOpen: false,
   docsPanelWidth: 320,
+  activeView: 'services' as ActiveView,
+  activeAgentTerminalTab: null,
+  agentTerminalPanelOpen: false,
 
   setProjectPath: (path) => set({ projectPath: path }),
   setProjectName: (name) => set({ projectName: name }),
@@ -58,5 +69,8 @@ export const useAppStore = create<AppState>((set) => ({
   setRecentProjects: (projects) => set({ recentProjects: projects }),
   setConfigError: (error) => set({ configError: error }),
   setDocsPanelOpen: (open) => set({ docsPanelOpen: open }),
-  setDocsPanelWidth: (width) => set({ docsPanelWidth: width })
+  setDocsPanelWidth: (width) => set({ docsPanelWidth: width }),
+  setActiveView: (view) => set({ activeView: view }),
+  setActiveAgentTerminalTab: (id) => set({ activeAgentTerminalTab: id }),
+  setAgentTerminalPanelOpen: (open) => set({ agentTerminalPanelOpen: open })
 }))

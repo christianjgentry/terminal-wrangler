@@ -8,6 +8,7 @@ export function useKeyboardShortcuts(): void {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
   const setDocsPanelOpen = useAppStore((s) => s.setDocsPanelOpen)
   const docsPanelOpen = useAppStore((s) => s.docsPanelOpen)
+  const setActiveView = useAppStore((s) => s.setActiveView)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
@@ -31,6 +32,18 @@ export function useKeyboardShortcuts(): void {
         setDocsPanelOpen(!docsPanelOpen)
       }
 
+      // Cmd+1 — Services view
+      if (isMeta && e.key === '1') {
+        e.preventDefault()
+        setActiveView('services')
+      }
+
+      // Cmd+2 — Agents view
+      if (isMeta && e.key === '2') {
+        e.preventDefault()
+        setActiveView('agents')
+      }
+
       // Escape — close sidebar
       if (e.key === 'Escape') {
         if (sidebarOpen) {
@@ -41,5 +54,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [terminalPanelOpen, sidebarOpen, docsPanelOpen, setTerminalPanelOpen, setSidebarOpen, setDocsPanelOpen])
+  }, [terminalPanelOpen, sidebarOpen, docsPanelOpen, setTerminalPanelOpen, setSidebarOpen, setDocsPanelOpen, setActiveView])
 }

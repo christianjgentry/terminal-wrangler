@@ -31,7 +31,9 @@ module.exports = {
           stopping: '#f59e0b',
           stopped: '#6b7280',
           error: '#ef4444',
-          crashed: '#dc2626'
+          crashed: '#dc2626',
+          planning: '#a855f7',
+          building: '#3b82f6'
         }
       },
       fontFamily: {
