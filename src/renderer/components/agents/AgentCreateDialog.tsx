@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { useAgentStore } from '../../stores/agent-store'
+import { generateBranchName } from '@shared/branch-utils'
 
 interface AgentCreateDialogProps {
   open: boolean
@@ -23,8 +24,18 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
   const [cwd, setCwd] = useState(projectPath || '')
   const [files, setFiles] = useState<string[]>([])
   const [planMode, setPlanMode] = useState(false)
+  const [createBranch, setCreateBranch] = useState(false)
+  const [branchName, setBranchName] = useState('')
+  const [branchEdited, setBranchEdited] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+
+  useEffect(() => {
+    if (!branchEdited) {
+      setBranchName(generateBranchName(name))
+    }
+  }, [name, branchEdited])
 
   const addFiles = useCallback((paths: string[]) => {
     setFiles((prev) => {
@@ -84,13 +95,16 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
     if (!name.trim() || !task.trim() || !cwd.trim()) return
 
     setCreating(true)
+    setError(null)
     try {
       const agent = await window.api.createAgent({
         name: name.trim(),
         task: task.trim(),
         cwd: cwd.trim(),
         files: files.length > 0 ? files : undefined,
-        planMode: planMode || undefined
+        planMode: planMode || undefined,
+        createBranch: createBranch || undefined,
+        branchName: createBranch ? branchName : undefined
       })
       addAgent(agent)
       setName('')
@@ -98,13 +112,18 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
       setCwd(projectPath || '')
       setFiles([])
       setPlanMode(false)
+      setCreateBranch(false)
+      setBranchName('')
+      setBranchEdited(false)
+      setError(null)
       onClose()
     } catch (err) {
-      console.error('Failed to create agent:', err)
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message)
     } finally {
       setCreating(false)
     }
-  }, [name, task, cwd, files, planMode, projectPath, addAgent, onClose])
+  }, [name, task, cwd, files, planMode, createBranch, branchName, projectPath, addAgent, onClose])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -237,6 +256,44 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
             </div>
           </div>
 
+          {/* Git Branch Toggle */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[10px] font-medium text-surface-400 uppercase tracking-wider">
+                Git Branch
+              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={createBranch}
+                onClick={() => setCreateBranch((v) => !v)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  createBranch ? 'bg-accent' : 'bg-surface-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                    createBranch ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`}
+                />
+              </button>
+            </div>
+            {createBranch && (
+              <div className="space-y-1.5">
+                <input
+                  type="text"
+                  value={branchName}
+                  onChange={(e) => {
+                    setBranchName(e.target.value)
+                    setBranchEdited(true)
+                  }}
+                  className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-surface-600 focus:outline-none focus:border-accent/50 font-mono text-xs"
+                />
+                <p className="text-[10px] text-surface-500">Branch will be created from main</p>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-[10px] font-medium text-surface-400 uppercase tracking-wider mb-1.5">
               Working Directory
@@ -249,6 +306,13 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
             />
           </div>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mx-5 mb-0 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+            {error}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-white/5">

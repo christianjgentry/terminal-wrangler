@@ -76,6 +76,14 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
                 {agent.subagents.length} subtask{agent.subagents.length !== 1 ? 's' : ''}
               </span>
             )}
+            {agent.branch && (
+              <span
+                className="text-[9px] text-surface-500 bg-surface-700 px-1.5 py-0.5 rounded font-mono truncate max-w-[120px]"
+                title={agent.branch}
+              >
+                &#x2387; {agent.branch}
+              </span>
+            )}
             {agent.detectedPrUrl && (
               <PrStatusSection
                 prUrl={agent.detectedPrUrl}

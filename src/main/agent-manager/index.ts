@@ -5,6 +5,8 @@ import type { AgentProcessEvents } from './types'
 import { AgentProcess } from './agent-process'
 import { githubManager } from '../github-manager'
 import { detectGitRemote } from '../github-manager/git-remote'
+import { createBranchFromMain } from '../github-manager/git-branch'
+import { generateBranchName } from '@shared/branch-utils'
 
 let agentCounter = 0
 
@@ -97,6 +99,18 @@ export class AgentProcessManager {
 
     this.agents.set(id, agentProcess)
 
+    let branch: string | undefined
+    if (request.createBranch) {
+      const branchName = request.branchName?.trim() || generateBranchName(request.name)
+      try {
+        await createBranchFromMain(request.cwd, branchName)
+        branch = branchName
+      } catch (err) {
+        this.agents.delete(id)
+        throw err
+      }
+    }
+
     const gitRemote = await detectGitRemote(request.cwd).catch(() => null)
 
     const info: AgentInfo = {
@@ -108,7 +122,8 @@ export class AgentProcessManager {
       createdAt: Date.now(),
       subagents: [],
       gitRemote: gitRemote ?? undefined,
-      files: request.files
+      files: request.files,
+      branch
     }
     this.agentInfos.set(id, info)
 

@@ -38,6 +38,7 @@ export interface AgentInfo {
   files?: string[]
   contextUsage?: ContextUsage
   tasks?: AgentTask[]
+  branch?: string
 }
 
 export interface CreateAgentRequest {
@@ -46,4 +47,6 @@ export interface CreateAgentRequest {
   cwd: string
   files?: string[]
   planMode?: boolean
+  createBranch?: boolean
+  branchName?: string
 }
