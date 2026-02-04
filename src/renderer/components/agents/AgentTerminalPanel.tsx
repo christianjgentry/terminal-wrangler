@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/app-store'
 import { useAgentStore } from '../../stores/agent-store'
 import { AgentStatusBadge } from './AgentStatusBadge'
 import { AgentTerminalView } from './AgentTerminalView'
+import { AgentPlanView } from './AgentPlanView'
 
 interface AgentTerminalPanelProps {
   height: number
@@ -13,6 +14,8 @@ export function AgentTerminalPanel({ height }: AgentTerminalPanelProps): JSX.Ele
   const setActiveTab = useAppStore((s) => s.setActiveAgentTerminalTab)
   const setAgentTerminalPanelOpen = useAppStore((s) => s.setAgentTerminalPanelOpen)
   const setTerminalPanelHeight = useAppStore((s) => s.setTerminalPanelHeight)
+  const agentPlanViewId = useAppStore((s) => s.agentPlanViewId)
+  const setAgentPlanViewId = useAppStore((s) => s.setAgentPlanViewId)
   const agents = useAgentStore((s) => s.agents)
   const agentEntries = Object.entries(agents).filter(([_, a]) => !a.parentAgentId)
 
@@ -90,6 +93,20 @@ export function AgentTerminalPanel({ height }: AgentTerminalPanelProps): JSX.Ele
           </button>
         ))}
         <div className="flex-1" />
+        {activeTab && agents[activeTab]?.planFilePath && (
+          <button
+            onClick={() =>
+              setAgentPlanViewId(agentPlanViewId === activeTab ? null : activeTab)
+            }
+            className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+              agentPlanViewId === activeTab
+                ? 'bg-accent/20 text-accent-light'
+                : 'text-surface-400 hover:text-white hover:bg-surface-800'
+            }`}
+          >
+            {agentPlanViewId === activeTab ? 'Terminal' : 'View Plan'}
+          </button>
+        )}
         <button
           onClick={() => setAgentTerminalPanelOpen(false)}
           className="text-surface-400 hover:text-white transition-colors text-sm leading-none px-1"
@@ -98,10 +115,14 @@ export function AgentTerminalPanel({ height }: AgentTerminalPanelProps): JSX.Ele
         </button>
       </div>
 
-      {/* Terminal content */}
+      {/* Terminal / Plan content */}
       <div className="flex-1 overflow-hidden">
         {activeTab && agents[activeTab] ? (
-          <AgentTerminalView agentId={activeTab} />
+          agentPlanViewId === activeTab ? (
+            <AgentPlanView agentId={activeTab} />
+          ) : (
+            <AgentTerminalView agentId={activeTab} />
+          )
         ) : (
           <div className="flex items-center justify-center h-full text-surface-500 text-xs">
             Select an agent tab to view its terminal

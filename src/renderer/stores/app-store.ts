@@ -19,6 +19,7 @@ interface AppState {
   activeView: ActiveView
   activeAgentTerminalTab: string | null
   agentTerminalPanelOpen: boolean
+  agentPlanViewId: string | null
 
   setProjectPath: (path: string | null) => void
   setProjectName: (name: string | null) => void
@@ -35,6 +36,7 @@ interface AppState {
   setActiveView: (view: ActiveView) => void
   setActiveAgentTerminalTab: (id: string | null) => void
   setAgentTerminalPanelOpen: (open: boolean) => void
+  setAgentPlanViewId: (id: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -53,6 +55,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeView: 'services' as ActiveView,
   activeAgentTerminalTab: null,
   agentTerminalPanelOpen: false,
+  agentPlanViewId: null,
 
   setProjectPath: (path) => set({ projectPath: path }),
   setProjectName: (name) => set({ projectName: name }),
@@ -71,6 +74,7 @@ export const useAppStore = create<AppState>((set) => ({
   setDocsPanelOpen: (open) => set({ docsPanelOpen: open }),
   setDocsPanelWidth: (width) => set({ docsPanelWidth: width }),
   setActiveView: (view) => set({ activeView: view }),
-  setActiveAgentTerminalTab: (id) => set({ activeAgentTerminalTab: id }),
-  setAgentTerminalPanelOpen: (open) => set({ agentTerminalPanelOpen: open })
+  setActiveAgentTerminalTab: (id) => set({ activeAgentTerminalTab: id, agentPlanViewId: null }),
+  setAgentTerminalPanelOpen: (open) => set({ agentTerminalPanelOpen: open }),
+  setAgentPlanViewId: (id) => set({ agentPlanViewId: id })
 }))

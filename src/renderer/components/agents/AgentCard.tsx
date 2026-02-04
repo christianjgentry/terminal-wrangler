@@ -1,14 +1,13 @@
-import { useState } from 'react'
 import type { AgentInfo } from '@shared/agent-types'
 import { agentStatusColors } from '../../lib/agent-status-colors'
 import { useGithubStore } from '../../stores/github-store'
 import { useAgentStore } from '../../stores/agent-store'
+import { useAppStore } from '../../stores/app-store'
 import { AgentStatusBadge } from './AgentStatusBadge'
 import { AgentMiniTerminal } from './AgentMiniTerminal'
 import { AgentTaskList } from './AgentTaskList'
 import { ContextUsageBar } from './ContextUsageBar'
 import { PrStatusSection } from './PrStatusSection'
-import { PlanModal } from './PlanModal'
 
 interface AgentCardProps {
   agent: AgentInfo
@@ -24,7 +23,9 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
   const isActive = agent.status !== 'done' && agent.status !== 'stopped' && agent.status !== 'error'
   const prInfo = useGithubStore((s) => s.prInfoByAgent[agent.id])
   const updateStatus = useAgentStore((s) => s.updateStatus)
-  const [showPlan, setShowPlan] = useState(false)
+  const setActiveAgentTerminalTab = useAppStore((s) => s.setActiveAgentTerminalTab)
+  const setAgentTerminalPanelOpen = useAppStore((s) => s.setAgentTerminalPanelOpen)
+  const setAgentPlanViewId = useAppStore((s) => s.setAgentPlanViewId)
 
   const handleOpenTerminal = (): void => {
     // For subagents, open the parent's terminal
@@ -83,7 +84,10 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  setShowPlan(true)
+                  const terminalId = agent.parentAgentId || agent.id
+                  setActiveAgentTerminalTab(terminalId)
+                  setAgentTerminalPanelOpen(true)
+                  setAgentPlanViewId(terminalId)
                 }}
                 className="text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 px-1.5 py-0.5 rounded transition-colors"
               >
@@ -151,13 +155,6 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
           </div>
         </div>
       </div>
-      {showPlan && (
-        <PlanModal
-          agentId={agent.id}
-          agentName={agent.name}
-          onClose={() => setShowPlan(false)}
-        />
-      )}
     </div>
   )
 }
