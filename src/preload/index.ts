@@ -324,7 +324,9 @@ const api = {
   transitionJiraIssue: (issueKey: string, transitionId: string): Promise<boolean> =>
     ipcRenderer.invoke(IPC.JIRA_TRANSITION_ISSUE, issueKey, transitionId),
   getJiraTransitions: (issueKey: string): Promise<JiraTransition[]> =>
-    ipcRenderer.invoke(IPC.JIRA_GET_TRANSITIONS, issueKey)
+    ipcRenderer.invoke(IPC.JIRA_GET_TRANSITIONS, issueKey),
+  clearJiraCredentials: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.JIRA_CLEAR_CREDENTIALS)
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -324,6 +324,10 @@ export function registerIpcHandlers(): void {
     return jiraManager.getTransitions(issueKey)
   })
 
+  ipcMain.handle(IPC.JIRA_CLEAR_CREDENTIALS, () => {
+    jiraManager.clearCredentials()
+  })
+
   // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge
   githubManager.onPrMerged = (agentId) => {
     agentProcessManager.updateAgentStatus(agentId, 'done')

@@ -16,3 +16,11 @@ export function getJiraProjectKey(): string | null {
 export function setJiraProjectKey(key: string): void {
   appStore.set('jiraProjectKey', key)
 }
+
+export function clearJiraCredentials(): void {
+  appStore.delete('jiraCredentials')
+}
+
+export function clearJiraProjectKey(): void {
+  appStore.delete('jiraProjectKey')
+}

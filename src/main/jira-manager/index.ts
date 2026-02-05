@@ -25,6 +25,13 @@ export class JiraManager {
     credentials.setJiraProjectKey(key)
   }
 
+  clearCredentials(): void {
+    credentials.clearJiraCredentials()
+    credentials.clearJiraProjectKey()
+    this.epicCache.clear()
+    this.storyCache.clear()
+  }
+
   // ── Connection ──────────────────────────────────
 
   async testConnection(creds: JiraCredentials): Promise<JiraConnectionResult> {

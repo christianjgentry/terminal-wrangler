@@ -142,12 +142,15 @@ export async function testJiraConnection(creds: JiraCredentials): Promise<JiraCo
 }
 
 export async function fetchEpics(creds: JiraCredentials, projectKey: string): Promise<JiraApiResult<JiraEpic[]>> {
-  const jql = encodeURIComponent(`project = "${projectKey}" AND issuetype = Epic ORDER BY rank ASC`)
-  const fields = 'summary,status,description'
   const result = await jiraRequest<{ issues: JiraIssueRaw[] }>(
     creds,
-    'GET',
-    `/rest/api/3/search?jql=${jql}&fields=${fields}&maxResults=100`
+    'POST',
+    '/rest/api/3/search/jql',
+    {
+      jql: `project = "${projectKey}" AND issuetype = Epic ORDER BY rank ASC`,
+      fields: ['summary', 'status', 'description'],
+      maxResults: 100
+    }
   )
   if (result.error || !result.data) {
     return { data: null, error: result.error }
@@ -162,12 +165,15 @@ export async function fetchEpics(creds: JiraCredentials, projectKey: string): Pr
 }
 
 export async function fetchStoriesByEpic(creds: JiraCredentials, epicKey: string): Promise<JiraApiResult<JiraStory[]>> {
-  const jql = encodeURIComponent(`"Epic Link" = "${epicKey}" OR parent = "${epicKey}" ORDER BY rank ASC`)
-  const fields = 'summary,status,description,priority,assignee,labels,issuetype,parent'
   const result = await jiraRequest<{ issues: JiraIssueRaw[] }>(
     creds,
-    'GET',
-    `/rest/api/3/search?jql=${jql}&fields=${fields}&maxResults=100`
+    'POST',
+    '/rest/api/3/search/jql',
+    {
+      jql: `"Epic Link" = "${epicKey}" OR parent = "${epicKey}" ORDER BY rank ASC`,
+      fields: ['summary', 'status', 'description', 'priority', 'assignee', 'labels', 'issuetype', 'parent'],
+      maxResults: 100
+    }
   )
   if (result.error || !result.data) {
     return { data: null, error: result.error }

@@ -40,6 +40,8 @@ interface JiraState {
   fetchEpics: (projectKey: string) => Promise<void>
   fetchStoriesForEpic: (epicKey: string) => Promise<void>
   refreshEpics: () => Promise<void>
+  disconnect: () => Promise<void>
+  clearProjectKey: () => void
 }
 
 export const useJiraStore = create<JiraState>((set, get) => ({
@@ -169,5 +171,27 @@ export const useJiraStore = create<JiraState>((set, get) => ({
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), loading: false })
     }
+  },
+
+  disconnect: async () => {
+    await window.api.clearJiraCredentials()
+    set({
+      credentials: null,
+      connectionStatus: 'disconnected',
+      connectionError: null,
+      displayName: null,
+      selectedProjectKey: null,
+      epics: [],
+      storiesByEpic: {},
+      expandedEpicKey: null,
+      selectedStoryKeys: new Set(),
+      selectedStoryDetail: null,
+      loading: false,
+      error: null
+    })
+  },
+
+  clearProjectKey: () => {
+    set({ selectedProjectKey: null, epics: [], storiesByEpic: {}, expandedEpicKey: null })
   }
 }))

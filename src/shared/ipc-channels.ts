@@ -103,5 +103,6 @@ export const IPC = {
   JIRA_REFRESH_STORIES: 'jira:refresh-stories',
   JIRA_ADD_COMMENT: 'jira:add-comment',
   JIRA_TRANSITION_ISSUE: 'jira:transition-issue',
-  JIRA_GET_TRANSITIONS: 'jira:get-transitions'
+  JIRA_GET_TRANSITIONS: 'jira:get-transitions',
+  JIRA_CLEAR_CREDENTIALS: 'jira:clear-credentials'
 } as const
