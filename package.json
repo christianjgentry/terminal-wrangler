@@ -9,7 +9,8 @@
     "preview": "electron-vite preview",
     "rebuild": "electron-rebuild -f -w node-pty",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "create-2waysms-backlog": "node scripts/create-2waysms-backlog.mjs"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",

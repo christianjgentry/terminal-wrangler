@@ -65,6 +65,7 @@ export const IPC = {
   AGENT_CONTEXT_USAGE: 'agent:context-usage',
   AGENT_TASKS_CHANGED: 'agent:tasks-changed',
   AGENT_PLAN_DETECTED: 'agent:plan-detected',
+  AGENT_INPUT_NEEDED: 'agent:input-needed',
 
   // Agent terminal
   AGENT_TERMINAL_DATA: 'agent:terminal-data',

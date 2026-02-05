@@ -233,6 +233,16 @@ const api = {
     ipcRenderer.on(IPC.AGENT_PLAN_DETECTED, handler)
     return () => ipcRenderer.removeListener(IPC.AGENT_PLAN_DETECTED, handler)
   },
+  onAgentInputNeeded: (
+    callback: (data: { agentId: string; agentName: string; prompt: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; agentName: string; prompt: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_INPUT_NEEDED, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_INPUT_NEEDED, handler)
+  },
 
   // Agent terminal
   onAgentTerminalData: (

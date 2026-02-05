@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useAgentStore } from '../stores/agent-store'
 import { useAgentTerminalStore } from '../stores/agent-terminal-store'
 import { useGithubStore } from '../stores/github-store'
+import { useNotificationStore } from '../stores/notification-store'
 import type { AgentStatus, AgentInfo, AgentTask } from '@shared/agent-types'
 import type { PrInfo } from '@shared/github-types'
 
@@ -16,6 +17,7 @@ export function useAgentIpcListeners(): void {
   const setProcessAlive = useAgentStore((s) => s.setProcessAlive)
   const appendData = useAgentTerminalStore((s) => s.appendData)
   const setPrInfo = useGithubStore((s) => s.setPrInfo)
+  const addNotification = useNotificationStore((s) => s.addNotification)
 
   useEffect(() => {
     const unsubStatus = window.api.onAgentStatusChanged(
@@ -75,6 +77,12 @@ export function useAgentIpcListeners(): void {
       }
     )
 
+    const unsubInputNeeded = window.api.onAgentInputNeeded(
+      (data: { agentId: string; agentName: string; prompt: string }) => {
+        addNotification(data.agentId, data.agentName, data.prompt)
+      }
+    )
+
     return () => {
       unsubStatus()
       unsubExit()
@@ -85,6 +93,7 @@ export function useAgentIpcListeners(): void {
       unsubTerminal()
       unsubPrInfo()
       unsubPlan()
+      unsubInputNeeded()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, setProcessAlive, appendData, setPrInfo])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, setProcessAlive, appendData, setPrInfo, addNotification])
 }

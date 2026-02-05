@@ -111,6 +111,12 @@ export class AgentProcessManager {
           info.planFilePath = planFilePath
           this.broadcast(IPC.AGENT_PLAN_DETECTED, { agentId, planFilePath })
         }
+      },
+      onInputNeeded: (agentId, prompt) => {
+        const info = this.agentInfos.get(agentId)
+        if (info) {
+          this.broadcast(IPC.AGENT_INPUT_NEEDED, { agentId, agentName: info.name, prompt })
+        }
       }
     }
 

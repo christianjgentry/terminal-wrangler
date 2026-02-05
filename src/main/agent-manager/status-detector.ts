@@ -8,6 +8,7 @@ interface StatusDetectorEvents {
   onContextUsageChanged: (used: number, max: number) => void
   onTasksChanged: (tasks: AgentTask[]) => void
   onPlanDetected: (planFilePath: string) => void
+  onInputNeeded: (prompt: string) => void
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
@@ -64,6 +65,43 @@ function matchesPlanning(text: string): boolean {
   )
 }
 
+// Patterns that indicate Claude Code is waiting for user input at the prompt
+function matchesWaitingAtPrompt(text: string): { waiting: boolean; prompt: string } {
+  // Get the last ~500 chars to check for prompt patterns
+  const tail = text.slice(-500)
+
+  // Claude Code prompt patterns - waiting for user input
+  // Look for the ">" prompt or question patterns at the very end
+
+  // Pattern: ends with "> " (Claude Code's input prompt)
+  if (/>\s*$/.test(tail)) {
+    // Check if there's a question or context before the prompt
+    const contextMatch = tail.match(/([^\n]{0,100})\s*>\s*$/)
+    const context = contextMatch ? contextMatch[1].trim() : ''
+    return { waiting: true, prompt: context || 'Waiting for input' }
+  }
+
+  // Pattern: ends with a question mark followed by whitespace/newline
+  const questionEnd = tail.match(/([^\n]{10,150}\?)\s*$/)
+  if (questionEnd) {
+    return { waiting: true, prompt: questionEnd[1].trim() }
+  }
+
+  // Pattern: "(y/n)" or "[Y/n]" style prompts
+  const ynPrompt = tail.match(/(\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\))\s*:?\s*$/)
+  if (ynPrompt) {
+    const contextMatch = tail.match(/([^\n]{0,80})\s*(?:\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\))\s*:?\s*$/)
+    return { waiting: true, prompt: contextMatch ? contextMatch[1].trim() : 'Yes/No question' }
+  }
+
+  // Pattern: "Press Enter" or "Type" prompts
+  if (/(?:press enter|type .{1,30}|enter .{1,30})\s*:?\s*$/i.test(tail)) {
+    return { waiting: true, prompt: 'Waiting for input' }
+  }
+
+  return { waiting: false, prompt: '' }
+}
+
 export class StatusDetector {
   private contextBuffer = ''
   private currentStatus: AgentStatus = 'idle'
@@ -79,6 +117,10 @@ export class StatusDetector {
   private lastTaskScanOffset = 0
   private _isStopped = false
   private detectedPlanFilePath: string | null = null
+  private lastInputPrompt: string | null = null
+  private inputNeededCooldown = false
+  private idleTimer: NodeJS.Timeout | null = null
+  private lastDataTime = 0
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -111,6 +153,9 @@ export class StatusDetector {
     // Detect plan file
     this.detectPlanFile(recent)
 
+    // Detect if input is needed
+    this.detectInputNeeded(recent)
+
     // Determine status in priority order
     const detected = this.detectStatus(recent)
     if (detected && detected !== this.currentStatus) {
@@ -125,6 +170,7 @@ export class StatusDetector {
   setStopped(): void {
     this._isStopped = true
     this.clearDebounce()
+    this.clearInputNeeded()
     this.setStatus('stopped')
   }
 
@@ -307,6 +353,45 @@ export class StatusDetector {
         this.detectedPlanFilePath = path
         this.events.onPlanDetected(path)
       }
+    }
+  }
+
+  private detectInputNeeded(_recent: string): void {
+    // Don't detect input if process is stopped
+    if (this._isStopped) return
+
+    // Reset idle timer on each data received
+    this.lastDataTime = Date.now()
+
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer)
+    }
+
+    // After 1.5 seconds of no new data, check if waiting at prompt
+    this.idleTimer = setTimeout(() => {
+      if (this._isStopped || this.inputNeededCooldown) return
+
+      const result = matchesWaitingAtPrompt(this.contextBuffer)
+      if (result.waiting && result.prompt !== this.lastInputPrompt) {
+        this.lastInputPrompt = result.prompt
+        this.events.onInputNeeded(result.prompt)
+
+        // Set cooldown to avoid spamming notifications
+        this.inputNeededCooldown = true
+        setTimeout(() => {
+          this.inputNeededCooldown = false
+          this.lastInputPrompt = null // Reset so same prompt can trigger again
+        }, 10000) // 10 second cooldown between notifications
+      }
+    }, 1500) // Wait 1.5 seconds of idle before checking
+  }
+
+  clearInputNeeded(): void {
+    this.lastInputPrompt = null
+    this.inputNeededCooldown = false
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer)
+      this.idleTimer = null
     }
   }
 

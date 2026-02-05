@@ -9,6 +9,7 @@ export interface AgentProcessEvents {
   onContextUsageChanged: (agentId: string, used: number, max: number) => void
   onTasksChanged: (agentId: string, tasks: AgentTask[]) => void
   onPlanDetected: (agentId: string, planFilePath: string) => void
+  onInputNeeded: (agentId: string, prompt: string) => void
 }
 
 export interface AgentConfig {

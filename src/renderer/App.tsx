@@ -6,6 +6,7 @@ import { useRecentProjects } from './hooks/useRecentProjects'
 import { useSessionUsageListener } from './hooks/useSessionUsageListener'
 import { WelcomeScreen } from './components/panels/WelcomeScreen'
 import { ProjectView } from './components/panels/ProjectView'
+import { NotificationToast } from './components/shared/NotificationToast'
 
 export default function App(): JSX.Element {
   const projectPath = useAppStore((s) => s.projectPath)
@@ -19,6 +20,7 @@ export default function App(): JSX.Element {
   return (
     <div className="h-screen w-screen flex flex-col bg-surface-950 text-white">
       {projectPath ? <ProjectView /> : <WelcomeScreen />}
+      <NotificationToast />
     </div>
   )
 }

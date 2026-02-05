@@ -69,3 +69,19 @@
 .react-flow__controls button:hover {
   background-color: #3b3b50 !important;
 }
+
+/* Notification toast animation */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
+}

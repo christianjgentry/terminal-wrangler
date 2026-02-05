@@ -43,6 +43,9 @@ export class AgentProcess {
       },
       onPlanDetected: (planFilePath) => {
         this.events.onPlanDetected(this.id, planFilePath)
+      },
+      onInputNeeded: (prompt) => {
+        this.events.onInputNeeded(this.id, prompt)
       }
     })
   }
