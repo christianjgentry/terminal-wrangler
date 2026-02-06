@@ -68,11 +68,6 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
           )
         )}
 
-        {/* Context usage bar */}
-        {agent.contextUsage && isProcessAlive && !isTerminalStatus && (
-          <ContextUsageBar used={agent.contextUsage.used} max={agent.contextUsage.max} />
-        )}
-
         {/* Footer */}
         <div className="flex items-center justify-between gap-1 flex-wrap">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
@@ -183,6 +178,11 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
           </div>
         </div>
       </div>
+
+      {/* Context usage bar — bottom edge */}
+      {agent.contextUsage && isProcessAlive && !isTerminalStatus && (
+        <ContextUsageBar used={agent.contextUsage.used} max={agent.contextUsage.max} />
+      )}
     </div>
   )
 }

@@ -13,18 +13,21 @@ export function ContextUsageBar({ used, max }: ContextUsageBarProps): JSX.Elemen
   const percentage = Math.min((used / max) * 100, 100)
   const color = getBarColor(percentage)
   const shouldPulse = percentage > 90
+  const displayUsed = used % 1 === 0 ? used : used.toFixed(1)
+  const pctDisplay = Math.round(percentage)
 
   return (
-    <div className="space-y-0.5">
-      <div className="w-full h-1 bg-surface-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ease-out${shouldPulse ? ' animate-pulse' : ''}`}
-          style={{ width: `${percentage}%`, backgroundColor: color }}
-        />
-      </div>
-      <p className="text-[9px] text-surface-500">
-        {used % 1 === 0 ? used : used.toFixed(1)}k / {max}k ctx
-      </p>
+    <div
+      className="relative w-full h-3 bg-surface-900/50"
+      title={`${displayUsed}k / ${max}k context tokens (${pctDisplay}%)`}
+    >
+      <div
+        className={`h-full transition-all duration-500 ease-out${shouldPulse ? ' animate-pulse' : ''}`}
+        style={{ width: `${percentage}%`, backgroundColor: color }}
+      />
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-white/70">
+        {pctDisplay}%
+      </span>
     </div>
   )
 }
