@@ -9,6 +9,7 @@ import { DocsPanel } from '../docs/DocsPanel'
 import { AgentBoard } from '../agents/AgentBoard'
 import { AgentTerminalPanel } from '../agents/AgentTerminalPanel'
 import { JiraBrowser } from '../jira/JiraBrowser'
+import { SettingsModal } from '../settings/SettingsModal'
 
 export function ProjectView(): JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
@@ -72,6 +73,8 @@ export function ProjectView(): JSX.Element {
           <JiraBrowser />
         </div>
       )}
+
+      <SettingsModal />
     </div>
   )
 }

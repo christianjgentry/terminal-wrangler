@@ -20,6 +20,8 @@ interface AppState {
   activeAgentTerminalTab: string | null
   agentTerminalPanelOpen: boolean
   agentPlanViewId: string | null
+  settingsModalOpen: boolean
+  settingsSection: string
 
   setProjectPath: (path: string | null) => void
   setProjectName: (name: string | null) => void
@@ -37,6 +39,8 @@ interface AppState {
   setActiveAgentTerminalTab: (id: string | null) => void
   setAgentTerminalPanelOpen: (open: boolean) => void
   setAgentPlanViewId: (id: string | null) => void
+  setSettingsModalOpen: (open: boolean) => void
+  setSettingsSection: (section: string) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -56,6 +60,8 @@ export const useAppStore = create<AppState>((set) => ({
   activeAgentTerminalTab: null,
   agentTerminalPanelOpen: false,
   agentPlanViewId: null,
+  settingsModalOpen: false,
+  settingsSection: 'authentication',
 
   setProjectPath: (path) => set({ projectPath: path }),
   setProjectName: (name) => set({ projectName: name }),
@@ -76,5 +82,7 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveView: (view) => set({ activeView: view }),
   setActiveAgentTerminalTab: (id) => set({ activeAgentTerminalTab: id, agentPlanViewId: null }),
   setAgentTerminalPanelOpen: (open) => set({ agentTerminalPanelOpen: open }),
-  setAgentPlanViewId: (id) => set({ agentPlanViewId: id })
+  setAgentPlanViewId: (id) => set({ agentPlanViewId: id }),
+  setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
+  setSettingsSection: (section) => set({ settingsSection: section })
 }))

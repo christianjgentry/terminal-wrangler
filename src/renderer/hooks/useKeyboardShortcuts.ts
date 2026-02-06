@@ -9,10 +9,19 @@ export function useKeyboardShortcuts(): void {
   const setDocsPanelOpen = useAppStore((s) => s.setDocsPanelOpen)
   const docsPanelOpen = useAppStore((s) => s.docsPanelOpen)
   const setActiveView = useAppStore((s) => s.setActiveView)
+  const settingsModalOpen = useAppStore((s) => s.settingsModalOpen)
+  const setSettingsModalOpen = useAppStore((s) => s.setSettingsModalOpen)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       const isMeta = e.metaKey || e.ctrlKey
+
+      // Cmd+, — toggle settings modal
+      if (isMeta && e.key === ',') {
+        e.preventDefault()
+        setSettingsModalOpen(!settingsModalOpen)
+        return
+      }
 
       // Cmd+` — toggle terminal panel
       if (isMeta && e.key === '`') {
@@ -60,5 +69,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [terminalPanelOpen, sidebarOpen, docsPanelOpen, setTerminalPanelOpen, setSidebarOpen, setDocsPanelOpen, setActiveView])
+  }, [terminalPanelOpen, sidebarOpen, docsPanelOpen, settingsModalOpen, setTerminalPanelOpen, setSidebarOpen, setDocsPanelOpen, setActiveView, setSettingsModalOpen])
 }
