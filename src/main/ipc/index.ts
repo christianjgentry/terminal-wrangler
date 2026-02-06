@@ -12,9 +12,11 @@ import { appStore } from '../store'
 import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
 import { jiraManager } from '../jira-manager'
+import { standardsManager } from '../standards-manager'
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
 import type { JiraCredentials } from '@shared/jira-types'
+import type { PlanToJiraRequest } from '@shared/planner-types'
 
 export function registerIpcHandlers(): void {
   // ── Dialog ──────────────────────────────────────────
@@ -326,6 +328,48 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.JIRA_CLEAR_CREDENTIALS, () => {
     jiraManager.clearCredentials()
+  })
+
+  // ── Standards / Planner ──────────────────────────────
+  ipcMain.handle(IPC.STANDARDS_GET_DIR, () => {
+    return standardsManager.getStandardsDir()
+  })
+
+  ipcMain.handle(IPC.STANDARDS_SET_DIR, (_event, dir: string) => {
+    standardsManager.setStandardsDir(dir)
+  })
+
+  ipcMain.handle(IPC.STANDARDS_LIST_FILES, async () => {
+    return standardsManager.listFiles()
+  })
+
+  ipcMain.handle(IPC.STANDARDS_READ_FILE, async (_event, relativePath: string) => {
+    return standardsManager.readFile(relativePath)
+  })
+
+  ipcMain.handle(IPC.STANDARDS_WRITE_FILE, async (_event, relativePath: string, content: string) => {
+    await standardsManager.writeFile(relativePath, content)
+  })
+
+  ipcMain.handle(IPC.PLANNER_SPAWN_AGENT, async (_event, request: PlanToJiraRequest) => {
+    const skillPrompt = await standardsManager.getSkillPrompt()
+    const filePaths = await standardsManager.getAbsolutePaths()
+
+    let taskPrompt = skillPrompt + '\n\nFeature to implement:\n' + request.featureDescription
+    if (request.projectKey) {
+      taskPrompt += `\n\nJira Project Key: ${request.projectKey}`
+    }
+    if (request.includeConfluence) {
+      taskPrompt += '\n\nInclude Confluence documentation pages for the epics/stories.'
+    }
+
+    const agentName = 'Jira Planner: ' + request.featureDescription.slice(0, 50)
+    return agentProcessManager.createAgent({
+      name: agentName,
+      task: taskPrompt,
+      cwd: process.env.HOME || '/tmp',
+      files: filePaths.length > 0 ? filePaths : undefined
+    })
   })
 
   // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge

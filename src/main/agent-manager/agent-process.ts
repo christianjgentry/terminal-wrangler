@@ -1,4 +1,7 @@
 import type * as pty from 'node-pty'
+import { writeFileSync, mkdirSync } from 'fs'
+import { join } from 'path'
+import { tmpdir } from 'os'
 import type { AgentStatus } from '@shared/agent-types'
 import { type AgentProcessEvents, type AgentConfig, OUTPUT_BUFFER_SIZE } from './types'
 import { StatusDetector } from './status-detector'
@@ -116,12 +119,15 @@ export class AgentProcess {
           if (this.config.planMode) {
             taskText = `Before implementing anything, first use the EnterPlanMode tool to create a detailed implementation plan. Once the plan is approved, proceed with implementation.\n\n${taskText}`
           }
-          const sanitizedTask = taskText
-            .replace(/\r\n/g, ' ')
-            .replace(/\n/g, ' ')
-            .replace(/\r/g, ' ')
-          const escapedTask = sanitizedTask.replace(/'/g, "'\\''")
-          let cmd = `claude --dangerously-skip-permissions '${escapedTask}'`
+
+          // Write task to a temp file and use $(cat ...) to avoid PTY line-length limits
+          const taskDir = join(tmpdir(), 'terminal-wrangler-tasks')
+          mkdirSync(taskDir, { recursive: true })
+          const taskFile = join(taskDir, `task-${this.id}.txt`)
+          writeFileSync(taskFile, taskText, 'utf-8')
+
+          const escapedTaskFile = taskFile.replace(/'/g, "'\\''")
+          let cmd = `claude --dangerously-skip-permissions "$(cat '${escapedTaskFile}')"`
           if (this.config.files && this.config.files.length > 0) {
             const escapedFiles = this.config.files
               .map((f) => `'${f.replace(/'/g, "'\\''")}'`)

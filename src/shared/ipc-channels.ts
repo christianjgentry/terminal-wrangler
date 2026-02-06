@@ -105,5 +105,13 @@ export const IPC = {
   JIRA_ADD_COMMENT: 'jira:add-comment',
   JIRA_TRANSITION_ISSUE: 'jira:transition-issue',
   JIRA_GET_TRANSITIONS: 'jira:get-transitions',
-  JIRA_CLEAR_CREDENTIALS: 'jira:clear-credentials'
+  JIRA_CLEAR_CREDENTIALS: 'jira:clear-credentials',
+
+  // Standards / Planner
+  STANDARDS_GET_DIR: 'standards:get-dir',
+  STANDARDS_SET_DIR: 'standards:set-dir',
+  STANDARDS_LIST_FILES: 'standards:list-files',
+  STANDARDS_READ_FILE: 'standards:read-file',
+  STANDARDS_WRITE_FILE: 'standards:write-file',
+  PLANNER_SPAWN_AGENT: 'planner:spawn-agent'
 } as const

@@ -3,6 +3,8 @@ import type { JiraCredentials, JiraConnectionResult, JiraEpic, JiraStory } from 
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
+export type JiraMode = 'browse' | 'planner'
+
 interface JiraState {
   credentials: JiraCredentials | null
   connectionStatus: ConnectionStatus
@@ -18,6 +20,7 @@ interface JiraState {
   loading: boolean
   error: string | null
   spawnDialogOpen: boolean
+  jiraMode: JiraMode
 
   setCredentials: (creds: JiraCredentials | null) => void
   setConnectionStatus: (status: ConnectionStatus, error?: string) => void
@@ -34,6 +37,7 @@ interface JiraState {
   setError: (error: string | null) => void
   setShowDone: (show: boolean) => void
   setSpawnDialogOpen: (open: boolean) => void
+  setJiraMode: (mode: JiraMode) => void
   getSelectedStories: () => JiraStory[]
 
   fetchCredentials: () => Promise<void>
@@ -61,6 +65,7 @@ export const useJiraStore = create<JiraState>((set, get) => ({
   loading: false,
   error: null,
   spawnDialogOpen: false,
+  jiraMode: 'browse',
 
   setCredentials: (creds) => set({ credentials: creds }),
   setConnectionStatus: (status, error) => set({ connectionStatus: status, connectionError: error || null }),
@@ -97,6 +102,7 @@ export const useJiraStore = create<JiraState>((set, get) => ({
   setError: (error) => set({ error }),
   setShowDone: (show) => set({ showDone: show }),
   setSpawnDialogOpen: (open) => set({ spawnDialogOpen: open }),
+  setJiraMode: (mode) => set({ jiraMode: mode }),
 
   getSelectedStories: () => {
     const state = get()

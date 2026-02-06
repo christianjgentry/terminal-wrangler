@@ -36,6 +36,7 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const setJiraSpawnDialogOpen = useJiraStore((s) => s.setSpawnDialogOpen)
   const jiraShowDone = useJiraStore((s) => s.showDone)
   const setJiraShowDone = useJiraStore((s) => s.setShowDone)
+  const jiraMode = useJiraStore((s) => s.jiraMode)
 
   const runningCount = Object.values(services).filter(
     (s) => s.status === 'running' || s.status === 'starting'
@@ -196,7 +197,7 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
           </>
         )}
 
-        {activeView === 'jira' && (
+        {activeView === 'jira' && jiraMode === 'browse' && (
           <>
             {jiraSelectedProjectKey && (
               <span className="text-[10px] font-mono text-accent-light bg-accent/10 px-2 py-0.5 rounded">
@@ -232,6 +233,12 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
               </button>
             )}
           </>
+        )}
+
+        {activeView === 'jira' && jiraMode === 'planner' && jiraSelectedProjectKey && (
+          <span className="text-[10px] font-mono text-accent-light bg-accent/10 px-2 py-0.5 rounded">
+            {jiraSelectedProjectKey}
+          </span>
         )}
       </div>
     </div>

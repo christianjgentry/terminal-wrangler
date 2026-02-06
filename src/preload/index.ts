@@ -5,6 +5,7 @@ import type { AgentInfo, AgentTask, CreateAgentRequest } from '@shared/agent-typ
 import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 import type { SessionUsageData } from '@shared/session-usage-types'
 import type { JiraCredentials, JiraConnectionResult, JiraEpic, JiraStory, JiraTransition } from '@shared/jira-types'
+import type { StandardsFile, PlanToJiraRequest } from '@shared/planner-types'
 
 const api = {
   // Dialog
@@ -336,7 +337,21 @@ const api = {
   getJiraTransitions: (issueKey: string): Promise<JiraTransition[]> =>
     ipcRenderer.invoke(IPC.JIRA_GET_TRANSITIONS, issueKey),
   clearJiraCredentials: (): Promise<void> =>
-    ipcRenderer.invoke(IPC.JIRA_CLEAR_CREDENTIALS)
+    ipcRenderer.invoke(IPC.JIRA_CLEAR_CREDENTIALS),
+
+  // Standards / Planner
+  getStandardsDir: (): Promise<string> =>
+    ipcRenderer.invoke(IPC.STANDARDS_GET_DIR),
+  setStandardsDir: (dir: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.STANDARDS_SET_DIR, dir),
+  listStandardsFiles: (): Promise<StandardsFile[]> =>
+    ipcRenderer.invoke(IPC.STANDARDS_LIST_FILES),
+  readStandardsFile: (relativePath: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.STANDARDS_READ_FILE, relativePath),
+  writeStandardsFile: (relativePath: string, content: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.STANDARDS_WRITE_FILE, relativePath, content),
+  spawnPlannerAgent: (request: PlanToJiraRequest): Promise<AgentInfo> =>
+    ipcRenderer.invoke(IPC.PLANNER_SPAWN_AGENT, request)
 }
 
 contextBridge.exposeInMainWorld('api', api)
