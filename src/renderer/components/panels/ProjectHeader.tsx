@@ -74,17 +74,14 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
       {/* View switching tabs */}
       <div className="no-drag flex items-center gap-0.5 ml-4 bg-surface-800 rounded-lg p-0.5">
         <button
-          onClick={() => setActiveView('services')}
+          onClick={() => setActiveView('jira')}
           className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
-            activeView === 'services'
+            activeView === 'jira'
               ? 'text-white bg-surface-700'
               : 'text-surface-400 hover:text-surface-300'
           }`}
         >
-          Services
-          {activeView === 'services' && (
-            <span className="ml-1 text-surface-500">{runningCount}/{totalCount}</span>
-          )}
+          Jira
         </button>
         <button
           onClick={() => setActiveView('agents')}
@@ -100,14 +97,17 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
           )}
         </button>
         <button
-          onClick={() => setActiveView('jira')}
+          onClick={() => setActiveView('services')}
           className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
-            activeView === 'jira'
+            activeView === 'services'
               ? 'text-white bg-surface-700'
               : 'text-surface-400 hover:text-surface-300'
           }`}
         >
-          Jira
+          Services
+          {activeView === 'services' && (
+            <span className="ml-1 text-surface-500">{runningCount}/{totalCount}</span>
+          )}
         </button>
       </div>
 
