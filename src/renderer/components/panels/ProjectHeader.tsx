@@ -34,6 +34,8 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const jiraSelectedStoryKeys = useJiraStore((s) => s.selectedStoryKeys)
   const refreshJiraEpics = useJiraStore((s) => s.refreshEpics)
   const setJiraSpawnDialogOpen = useJiraStore((s) => s.setSpawnDialogOpen)
+  const jiraShowDone = useJiraStore((s) => s.showDone)
+  const setJiraShowDone = useJiraStore((s) => s.setShowDone)
 
   const runningCount = Object.values(services).filter(
     (s) => s.status === 'running' || s.status === 'starting'
@@ -200,6 +202,18 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
               <span className="text-[10px] font-mono text-accent-light bg-accent/10 px-2 py-0.5 rounded">
                 {jiraSelectedProjectKey}
               </span>
+            )}
+            {jiraSelectedProjectKey && (
+              <button
+                onClick={() => setJiraShowDone(!jiraShowDone)}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
+                  jiraShowDone
+                    ? 'text-accent-light bg-accent/20'
+                    : 'text-surface-400 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                Show Done
+              </button>
             )}
             {jiraSelectedProjectKey && (
               <button

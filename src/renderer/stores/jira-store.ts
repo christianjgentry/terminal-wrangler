@@ -14,6 +14,7 @@ interface JiraState {
   expandedEpicKey: string | null
   selectedStoryKeys: Set<string>
   selectedStoryDetail: JiraStory | null
+  showDone: boolean
   loading: boolean
   error: string | null
   spawnDialogOpen: boolean
@@ -31,6 +32,7 @@ interface JiraState {
   setSelectedStoryDetail: (story: JiraStory | null) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
+  setShowDone: (show: boolean) => void
   setSpawnDialogOpen: (open: boolean) => void
   getSelectedStories: () => JiraStory[]
 
@@ -55,6 +57,7 @@ export const useJiraStore = create<JiraState>((set, get) => ({
   expandedEpicKey: null,
   selectedStoryKeys: new Set(),
   selectedStoryDetail: null,
+  showDone: false,
   loading: false,
   error: null,
   spawnDialogOpen: false,
@@ -92,6 +95,7 @@ export const useJiraStore = create<JiraState>((set, get) => ({
   setSelectedStoryDetail: (story) => set({ selectedStoryDetail: story }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  setShowDone: (show) => set({ showDone: show }),
   setSpawnDialogOpen: (open) => set({ spawnDialogOpen: open }),
 
   getSelectedStories: () => {

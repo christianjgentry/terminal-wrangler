@@ -1,7 +1,9 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import type { JiraEpic } from '@shared/jira-types'
 import { useJiraStore } from '../../stores/jira-store'
 import { JiraStoryCard } from './JiraStoryCard'
+
+const DONE_STATUSES = ['done', 'closed', 'resolved']
 
 interface JiraEpicCardProps {
   epic: JiraEpic
@@ -14,10 +16,15 @@ export function JiraEpicCard({ epic }: JiraEpicCardProps): JSX.Element {
   const fetchStoriesForEpic = useJiraStore((s) => s.fetchStoriesForEpic)
   const selectAllStoriesForEpic = useJiraStore((s) => s.selectAllStoriesForEpic)
   const setSpawnDialogOpen = useJiraStore((s) => s.setSpawnDialogOpen)
+  const showDone = useJiraStore((s) => s.showDone)
 
   const isExpanded = expandedEpicKey === epic.key
   const stories = storiesByEpic[epic.key]
-  const storyCount = epic.storyCount ?? stories?.length
+  const filteredStories = useMemo(
+    () => stories?.filter((s) => showDone || !DONE_STATUSES.includes(s.status.toLowerCase())),
+    [stories, showDone]
+  )
+  const storyCount = epic.storyCount ?? filteredStories?.length
 
   // Lazy-load stories when expanding
   useEffect(() => {
@@ -76,10 +83,12 @@ export function JiraEpicCard({ epic }: JiraEpicCardProps): JSX.Element {
         <div className="px-3 py-2 space-y-1.5 bg-surface-850">
           {!stories ? (
             <div className="text-[10px] text-surface-500 py-2 text-center">Loading stories...</div>
-          ) : stories.length === 0 ? (
-            <div className="text-[10px] text-surface-500 py-2 text-center">No stories found</div>
+          ) : filteredStories!.length === 0 ? (
+            <div className="text-[10px] text-surface-500 py-2 text-center">
+              {stories.length > 0 ? 'All stories are done' : 'No stories found'}
+            </div>
           ) : (
-            stories.map((story) => (
+            filteredStories!.map((story) => (
               <JiraStoryCard key={story.key} story={story} />
             ))
           )}
