@@ -13,22 +13,39 @@ interface StatusDetectorEvents {
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
 const RECENT_WINDOW = 1500 // chars to check for pattern matching
-const EXTENDED_WINDOW = 3000 // larger window for building detection when in planning
-const DEBOUNCE_MS = 2000
 
-// Forward-only status progression ranks.
-// Higher rank = further along. Terminal states (done, error, stopped) always apply.
-const STATUS_RANK: Record<AgentStatus, number> = {
-  idle: 0,
-  planning: 1,
-  building: 2,
-  pr_ready: 3,
-  done: 4,
-  error: 4,
-  stopped: 4
-}
+const FORWARD_DEBOUNCE_MS = 1500 // planning→building
+const BACKWARD_DEBOUNCE_MS = 4000 // building→planning
+const BUILDING_STICKINESS_MS = 12000 // stay "building" for 12s after last build tool
 
 const TERMINAL_STATUSES: Set<AgentStatus> = new Set(['done', 'error', 'stopped'])
+
+// Tool categories for per-chunk activity tracking
+const PLANNING_TOOLS = new Set([
+  'Read',
+  'Glob',
+  'Grep',
+  'Ls',
+  'WebSearch',
+  'WebFetch',
+  'EnterPlanMode',
+  'AskUserQuestion',
+  'Task'
+])
+
+const BUILDING_TOOLS = new Set([
+  'Write',
+  'Edit',
+  'MultiEdit',
+  'Bash',
+  'NotebookEdit',
+  'ExitPlanMode',
+  'Skill'
+])
+
+// Regex to detect tool invocations in output chunks
+const TOOL_REGEX =
+  /\b(Read|Write|Edit|MultiEdit|Glob|Grep|Bash|WebSearch|WebFetch|Ls|NotebookEdit|EnterPlanMode|ExitPlanMode|AskUserQuestion|Task|Skill)[\s(]/g
 
 // --- Pattern helpers ---
 
@@ -40,6 +57,12 @@ function matchesBuilding(text: string): boolean {
     /\b(?:Wrote to|Updated|Created|Edited|Modified)\s/.test(text) ||
     // Bash tool
     /\bBash[\s(]/.test(text) ||
+    // Notebook edits
+    /\bNotebookEdit[\s(]/.test(text) ||
+    // Exit plan mode (done planning, about to build)
+    /\bExitPlanMode\b/.test(text) ||
+    // Executing a skill
+    /\bSkill[\s(]/.test(text) ||
     // Package manager commands
     /\b(?:npm|yarn|pnpm)\s+(?:install|run|test|build)\b/.test(text) ||
     // Git operations
@@ -56,12 +79,28 @@ function matchesPlanning(text: string): boolean {
   return (
     // Read/search tool invocations
     /\b(?:Read|Glob|Grep|Ls|WebSearch|WebFetch)[\s(]/.test(text) ||
+    // Explicit plan mode entry
+    /\bEnterPlanMode\b/.test(text) ||
+    // Asking for clarification
+    /\bAskUserQuestion\b/.test(text) ||
+    // Spawning subagent (coordinating)
+    /\bTask[\s(]/.test(text) ||
     // Descriptive planning verbs
     /\b(?:Searching|Analyzing|Reading|Exploring|Examining)\b/.test(text) ||
     // Explicit plan
     /\bPlan:/i.test(text) ||
     // Thinking/reasoning indicators
     /\b(?:Thinking|Reasoning)\b/.test(text)
+  )
+}
+
+/** Low-confidence patterns only used to escape idle state */
+function matchesEarlyActivity(text: string): boolean {
+  return (
+    // Claude Code's bullet/box drawing chars
+    /[╭⏺●]/.test(text) ||
+    // Common Claude opening phrases
+    /\bI'll\b|\bLet me\b|\bI need to\b/i.test(text)
   )
 }
 
@@ -121,6 +160,10 @@ export class StatusDetector {
   private inputNeededCooldown = false
   private idleTimer: NodeJS.Timeout | null = null
   private lastDataTime = 0
+  // Activity-based tool tracking
+  private lastBuildingTime = 0
+  private lastPlanningTime = 0
+  private lastToolCategory: 'planning' | 'building' | null = null
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -155,6 +198,9 @@ export class StatusDetector {
 
     // Detect if input is needed
     this.detectInputNeeded(recent)
+
+    // Scan this chunk for tool invocations (before window-based detection)
+    this.detectToolInChunk(cleaned)
 
     // Determine status in priority order
     const detected = this.detectStatus(recent)
@@ -191,6 +237,26 @@ export class StatusDetector {
     }
   }
 
+  /** Scan each incoming chunk for tool invocations and update timestamps */
+  private detectToolInChunk(cleaned: string): void {
+    TOOL_REGEX.lastIndex = 0
+    let lastMatch: string | null = null
+    let m: RegExpExecArray | null
+    while ((m = TOOL_REGEX.exec(cleaned)) !== null) {
+      lastMatch = m[1]
+    }
+    if (!lastMatch) return
+
+    const now = Date.now()
+    if (BUILDING_TOOLS.has(lastMatch)) {
+      this.lastToolCategory = 'building'
+      this.lastBuildingTime = now
+    } else if (PLANNING_TOOLS.has(lastMatch)) {
+      this.lastToolCategory = 'planning'
+      this.lastPlanningTime = now
+    }
+  }
+
   private detectStatus(recent: string): AgentStatus | null {
     // Priority 1: PR Ready
     if (
@@ -202,22 +268,29 @@ export class StatusDetector {
       return 'pr_ready'
     }
 
-    // Priority 3: Building
+    // Priority 2: Tool-based detection (primary signal)
+    if (this.lastToolCategory === 'building') {
+      return 'building'
+    }
+    if (this.lastToolCategory === 'planning') {
+      const timeSinceBuilding = Date.now() - this.lastBuildingTime
+      if (this.lastBuildingTime > 0 && timeSinceBuilding < BUILDING_STICKINESS_MS) {
+        // Planning tools during building stickiness window → stay building
+        return 'building'
+      }
+      return 'planning'
+    }
+
+    // Priority 3: Fallback window-based pattern matching
     if (matchesBuilding(recent)) {
       return 'building'
     }
-
-    // Priority 3b: Extended building check when stuck in planning
-    // Look at a larger window to catch tool uses that scrolled past the recent window
-    if (this.currentStatus === 'planning') {
-      const extended = this.contextBuffer.slice(-EXTENDED_WINDOW)
-      if (matchesBuilding(extended)) {
-        return 'building'
-      }
+    if (matchesPlanning(recent)) {
+      return 'planning'
     }
 
-    // Priority 4: Planning
-    if (matchesPlanning(recent)) {
+    // Priority 4: Early activity detection (only from idle)
+    if (this.currentStatus === 'idle' && matchesEarlyActivity(recent)) {
       return 'planning'
     }
 
@@ -232,53 +305,63 @@ export class StatusDetector {
       return
     }
 
-    // Forward-only: reject transitions that would go backward
-    const newRank = STATUS_RANK[newStatus]
-    const currentRank = STATUS_RANK[this.currentStatus]
-    if (newRank <= currentRank && !TERMINAL_STATUSES.has(this.currentStatus)) {
+    // No backward transitions FROM terminal or pr_ready states
+    if (TERMINAL_STATUSES.has(this.currentStatus) || this.currentStatus === 'pr_ready') {
+      // Only allow pr_ready if currently in active zone
       return
     }
 
-    // Immediate transition from idle → planning
+    // pr_ready is immediate and sticky (no backward from it)
+    if (newStatus === 'pr_ready') {
+      this.clearDebounce()
+      this.setStatus(newStatus)
+      return
+    }
+
+    // idle → planning: immediate
     if (this.currentStatus === 'idle' && newStatus === 'planning') {
       this.clearDebounce()
       this.setStatus(newStatus)
       return
     }
 
-    // Force through planning when jumping from idle to building or beyond
-    if (this.currentStatus === 'idle' && STATUS_RANK[newStatus] > STATUS_RANK['planning']) {
+    // idle → building: force through planning first, then debounce to building
+    if (this.currentStatus === 'idle' && newStatus === 'building') {
       this.setStatus('planning')
       this.pendingStatus = newStatus
       this.debounceTimer = setTimeout(() => {
         if (this.pendingStatus) {
-          const pendingRank = STATUS_RANK[this.pendingStatus]
-          const curRank = STATUS_RANK[this.currentStatus]
-          if (pendingRank > curRank || TERMINAL_STATUSES.has(this.pendingStatus)) {
-            this.setStatus(this.pendingStatus)
-          }
+          this.setStatus(this.pendingStatus)
           this.pendingStatus = null
         }
-      }, DEBOUNCE_MS)
+      }, FORWARD_DEBOUNCE_MS)
       return
     }
 
-    // Debounced transitions: planning→building, building→pr_ready
+    // Active zone: bidirectional transitions between planning ↔ building
+    const isForward =
+      (this.currentStatus === 'planning' && newStatus === 'building') ||
+      (this.currentStatus === 'building' && newStatus === 'pr_ready')
+    const isBackward = this.currentStatus === 'building' && newStatus === 'planning'
+
+    const debounceMs = isBackward ? BACKWARD_DEBOUNCE_MS : FORWARD_DEBOUNCE_MS
+
+    if (!isForward && !isBackward) {
+      // Same status or unexpected combination — ignore
+      return
+    }
+
+    // Don't restart debounce if already pending the same status
     if (this.pendingStatus === newStatus) return
 
     this.clearDebounce()
     this.pendingStatus = newStatus
     this.debounceTimer = setTimeout(() => {
       if (this.pendingStatus) {
-        // Re-check forward-only at commit time
-        const pendingRank = STATUS_RANK[this.pendingStatus]
-        const curRank = STATUS_RANK[this.currentStatus]
-        if (pendingRank > curRank || TERMINAL_STATUSES.has(this.pendingStatus)) {
-          this.setStatus(this.pendingStatus)
-        }
+        this.setStatus(this.pendingStatus)
         this.pendingStatus = null
       }
-    }, DEBOUNCE_MS)
+    }, debounceMs)
   }
 
   private setStatus(status: AgentStatus): void {
