@@ -7,6 +7,12 @@ import { agentProcessManager } from './agent-manager'
 import { githubManager } from './github-manager'
 import { sessionUsageManager } from './session-usage-manager'
 import { configLoader } from './config'
+import { createLogger } from './lib/logger'
+
+const logger = createLogger('Main')
+
+process.on('unhandledRejection', (reason) => logger.error('Unhandled rejection:', reason))
+process.on('uncaughtException', (error) => logger.error('Uncaught exception:', error))
 
 let mainWindow: BrowserWindow | null = null
 

@@ -1,5 +1,5 @@
-import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
+import { broadcast } from '../lib/broadcast'
 import type { ServiceConfig, ServiceStatus } from '@shared/types'
 import { ServiceProcess } from './service-process'
 import { HealthChecker } from './health-checker'
@@ -150,12 +150,7 @@ export class ProcessManager {
   }
 
   private sendToRenderer(channel: string, data: unknown): void {
-    const windows = BrowserWindow.getAllWindows()
-    for (const win of windows) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, data)
-      }
-    }
+    broadcast(channel, data)
   }
 }
 

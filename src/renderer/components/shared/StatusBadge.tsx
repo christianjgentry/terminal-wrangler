@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { ServiceStatus } from '@shared/types'
 import { statusColors, statusLabels } from '../../lib/status-colors'
 
@@ -6,7 +7,7 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md'
 }
 
-export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps): JSX.Element {
+export const StatusBadge = memo(function StatusBadge({ status, size = 'sm' }: StatusBadgeProps): JSX.Element {
   const color = statusColors[status]
   const label = statusLabels[status]
   const isAnimating = status === 'starting' || status === 'stopping'
@@ -37,4 +38,4 @@ export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps): JSX.Elem
       </span>
     </div>
   )
-}
+})

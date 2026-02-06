@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { AgentInfo } from '@shared/agent-types'
 import type { KanbanColumn as KanbanColumnType } from '../../lib/agent-status-colors'
 import { AgentCard } from './AgentCard'
@@ -11,7 +12,7 @@ interface KanbanColumnProps {
   onRerunAgent: (agentId: string) => void
 }
 
-export function KanbanColumn({ column, agents, onStopAgent, onRemoveAgent, onOpenTerminal, onRerunAgent }: KanbanColumnProps): JSX.Element {
+export const KanbanColumn = memo(function KanbanColumn({ column, agents, onStopAgent, onRemoveAgent, onOpenTerminal, onRerunAgent }: KanbanColumnProps): JSX.Element {
   return (
     <div className="flex-1 min-w-[220px] max-w-[320px] flex flex-col">
       {/* Column header */}
@@ -44,4 +45,4 @@ export function KanbanColumn({ column, agents, onStopAgent, onRemoveAgent, onOpe
       </div>
     </div>
   )
-}
+})

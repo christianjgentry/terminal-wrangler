@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { ServiceStatus } from '@shared/types'
 import { statusColors } from '../../lib/status-colors'
 import { StatusBadge } from '../shared/StatusBadge'
@@ -16,9 +16,10 @@ export interface ServiceNodeData {
   [key: string]: unknown
 }
 
-function ServiceNodeComponent({ data, selected }: NodeProps): JSX.Element {
-  const nodeData = data as unknown as ServiceNodeData
-  const { label, serviceId, status, command, tags, hasDependencies, hasDependents } = nodeData
+export type ServiceNodeType = Node<ServiceNodeData, 'service'>
+
+function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>): JSX.Element {
+  const { label, serviceId, status, command, tags, hasDependencies, hasDependents } = data
   const color = statusColors[status]
   const setActiveTerminalTab = useAppStore((s) => s.setActiveTerminalTab)
   const setTerminalPanelOpen = useAppStore((s) => s.setTerminalPanelOpen)

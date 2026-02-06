@@ -15,7 +15,7 @@ import { useServiceStore, type ServiceEntry } from '../../stores/service-store'
 import { useAppStore } from '../../stores/app-store'
 import { getLayoutedElements } from '../../lib/graph-layout'
 import { statusColors } from '../../lib/status-colors'
-import { ServiceNode, type ServiceNodeData } from './ServiceNode'
+import { ServiceNode, type ServiceNodeData, type ServiceNodeType } from './ServiceNode'
 import { DependencyEdge } from './DependencyEdge'
 
 const nodeTypes = { service: ServiceNode }
@@ -139,7 +139,7 @@ export function ServiceGraph(): JSX.Element {
         <Controls showInteractive={false} />
         <MiniMap
           nodeColor={(node) => {
-            const data = node.data as unknown as ServiceNodeData
+            const data = (node as ServiceNodeType).data
             return statusColors[data.status]
           }}
           maskColor="rgba(20, 20, 32, 0.8)"

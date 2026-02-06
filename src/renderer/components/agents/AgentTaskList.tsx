@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { AgentTask } from '@shared/agent-types'
 
 interface AgentTaskListProps {
@@ -26,7 +27,7 @@ function TaskIcon({ status }: { status: AgentTask['status'] }): JSX.Element {
   )
 }
 
-export function AgentTaskList({ tasks }: AgentTaskListProps): JSX.Element {
+export const AgentTaskList = memo(function AgentTaskList({ tasks }: AgentTaskListProps): JSX.Element {
   if (tasks.length === 0) {
     return (
       <div className="bg-surface-950 rounded px-2 py-1.5 h-[68px] flex items-center justify-center">
@@ -61,4 +62,4 @@ export function AgentTaskList({ tasks }: AgentTaskListProps): JSX.Element {
       ))}
     </div>
   )
-}
+})

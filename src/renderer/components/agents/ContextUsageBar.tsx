@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 interface ContextUsageBarProps {
   used: number
   max: number
@@ -9,7 +11,7 @@ function getBarColor(percentage: number): string {
   return '#3b82f6'
 }
 
-export function ContextUsageBar({ used, max }: ContextUsageBarProps): JSX.Element {
+export const ContextUsageBar = memo(function ContextUsageBar({ used, max }: ContextUsageBarProps): JSX.Element {
   const percentage = Math.min((used / max) * 100, 100)
   const color = getBarColor(percentage)
   const shouldPulse = percentage > 90
@@ -30,4 +32,4 @@ export function ContextUsageBar({ used, max }: ContextUsageBarProps): JSX.Elemen
       </span>
     </div>
   )
-}
+})

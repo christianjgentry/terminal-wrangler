@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC } from '@shared/ipc-channels'
-import type { AppSettings, ProjectDocsData } from '@shared/types'
+import type { AppSettings, ProjectDocsData, ProjectConfig } from '@shared/types'
 import type { AgentInfo, AgentTask, CreateAgentRequest } from '@shared/agent-types'
 import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 import type { SessionUsageData } from '@shared/session-usage-types'
@@ -27,8 +27,8 @@ const api = {
     ipcRenderer.invoke(IPC.CONFIG_GENERATE, projectPath),
   saveGeneratedConfig: (projectPath: string, yamlContent: string): Promise<void> =>
     ipcRenderer.invoke(IPC.CONFIG_SAVE, projectPath, yamlContent),
-  onConfigChanged: (callback: (config: unknown) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, config: unknown): void => callback(config)
+  onConfigChanged: (callback: (config: ProjectConfig) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, config: ProjectConfig): void => callback(config)
     ipcRenderer.on(IPC.CONFIG_CHANGED, handler)
     return () => ipcRenderer.removeListener(IPC.CONFIG_CHANGED, handler)
   },

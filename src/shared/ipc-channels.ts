@@ -115,3 +115,38 @@ export const IPC = {
   STANDARDS_WRITE_FILE: 'standards:write-file',
   PLANNER_SPAWN_AGENT: 'planner:spawn-agent'
 } as const
+
+export type IpcChannel = (typeof IPC)[keyof typeof IPC]
+
+export interface IpcPayloadMap {
+  // Service events (main -> renderer)
+  [IPC.SERVICE_STATUS_CHANGED]: { serviceId: string; status: import('./types').ServiceStatus; pid?: number }
+  [IPC.SERVICE_EXIT]: { serviceId: string; exitCode: number | null }
+  [IPC.TERMINAL_DATA]: { serviceId: string; data: string }
+  [IPC.HEALTH_CHECK_RESULT]: { serviceId: string; healthy: boolean; output: string }
+
+  // Agent events (main -> renderer)
+  [IPC.AGENT_STATUS_CHANGED]: { agentId: string; status: import('./agent-types').AgentStatus }
+  [IPC.AGENT_EXIT]: { agentId: string; exitCode: number | null }
+  [IPC.AGENT_TERMINAL_DATA]: { agentId: string; data: string }
+  [IPC.AGENT_SUBAGENT_DETECTED]: { agentId: string; subagent: import('./agent-types').AgentInfo }
+  [IPC.AGENT_PR_DETECTED]: { agentId: string; prUrl: string }
+  [IPC.AGENT_CONTEXT_USAGE]: { agentId: string; used: number; max: number }
+  [IPC.AGENT_TASKS_CHANGED]: { agentId: string; tasks: import('./agent-types').AgentTask[] }
+  [IPC.AGENT_PLAN_DETECTED]: { agentId: string; planFilePath: string }
+  [IPC.AGENT_INPUT_NEEDED]: { agentId: string; agentName: string; prompt: string }
+
+  // GitHub events (main -> renderer)
+  [IPC.GITHUB_PR_INFO_UPDATED]: { agentId: string; prInfo: import('./github-types').PrInfo }
+
+  // Session usage events (main -> renderer)
+  [IPC.SESSION_USAGE_CHANGED]: import('./session-usage-types').SessionUsageData | null
+
+  // Docs events (main -> renderer)
+  [IPC.DOCS_COMMAND_OUTPUT]: { commandId: string; data: string }
+  [IPC.DOCS_COMMAND_EXIT]: { commandId: string; exitCode: number }
+
+  // Config events (main -> renderer)
+  [IPC.CONFIG_CHANGED]: import('./types').ProjectConfig
+  [IPC.CONFIG_ERROR]: string
+}

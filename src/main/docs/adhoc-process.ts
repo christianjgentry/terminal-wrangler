@@ -1,6 +1,6 @@
 import type * as pty from 'node-pty'
-import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
+import { broadcast } from '../lib/broadcast'
 import { cleanEnvForPty } from '../pty-env'
 
 const KILL_TIMEOUT = 5000
@@ -14,12 +14,6 @@ interface AdhocEntry {
 }
 
 const processes = new Map<string, AdhocEntry>()
-
-function broadcast(channel: string, data: unknown): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send(channel, data)
-  }
-}
 
 function batchAndSend(commandId: string, entry: AdhocEntry, data: string): void {
   entry.batchBuffer += data
@@ -90,6 +84,8 @@ export async function runCommand(
   })
 }
 
+/** Stop an ad-hoc command: SIGTERM only with a SIGKILL fallback.
+ *  Short-lived commands don't need the Ctrl+C escalation that interactive CLIs require. */
 export async function stopCommand(commandId: string): Promise<void> {
   const entry = processes.get(commandId)
   if (!entry) return

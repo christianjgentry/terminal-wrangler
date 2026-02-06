@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { cleanTerminalOutput } from '@shared/strip-ansi'
 import { useAgentTerminalStore } from '../../stores/agent-terminal-store'
 
@@ -7,7 +7,7 @@ interface AgentMiniTerminalProps {
   lines?: number
 }
 
-export function AgentMiniTerminal({ agentId, lines = 4 }: AgentMiniTerminalProps): JSX.Element {
+export const AgentMiniTerminal = memo(function AgentMiniTerminal({ agentId, lines = 4 }: AgentMiniTerminalProps): JSX.Element {
   const buffer = useAgentTerminalStore((s) => s.buffers[agentId] || '')
 
   const displayLines = useMemo(() => {
@@ -29,4 +29,4 @@ export function AgentMiniTerminal({ agentId, lines = 4 }: AgentMiniTerminalProps
       )}
     </div>
   )
-}
+})

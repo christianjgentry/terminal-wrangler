@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { BaseEdge, getSmoothStepPath, type EdgeProps } from '@xyflow/react'
+import { BaseEdge, getSmoothStepPath, type EdgeProps, type Edge } from '@xyflow/react'
 import type { ServiceStatus } from '@shared/types'
 import { statusColors } from '../../lib/status-colors'
 
@@ -7,6 +7,8 @@ export interface DependencyEdgeData {
   sourceStatus: ServiceStatus
   [key: string]: unknown
 }
+
+export type DependencyEdgeType = Edge<DependencyEdgeData, 'dependency'>
 
 function DependencyEdgeComponent({
   id,
@@ -17,9 +19,8 @@ function DependencyEdgeComponent({
   sourcePosition,
   targetPosition,
   data
-}: EdgeProps): JSX.Element {
-  const edgeData = data as unknown as DependencyEdgeData | undefined
-  const sourceStatus = edgeData?.sourceStatus || 'idle'
+}: EdgeProps<DependencyEdgeType>): JSX.Element {
+  const sourceStatus = data?.sourceStatus || 'idle'
   const color = statusColors[sourceStatus]
   const isActive = sourceStatus === 'running'
   const isStarting = sourceStatus === 'starting'

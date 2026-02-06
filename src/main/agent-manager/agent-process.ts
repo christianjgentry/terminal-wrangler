@@ -6,6 +6,9 @@ import type { AgentStatus } from '@shared/agent-types'
 import { type AgentProcessEvents, type AgentConfig, OUTPUT_BUFFER_SIZE } from './types'
 import { StatusDetector } from './status-detector'
 import { cleanEnvForPty } from '../pty-env'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('AgentProcess')
 
 const CTRL_C_TIMEOUT = 2000
 const SIGTERM_TIMEOUT = 3000
@@ -146,6 +149,10 @@ export class AgentProcess {
     }
   }
 
+  /** Stop the agent process: Ctrl+C → SIGTERM → SIGKILL escalation.
+   *  Interactive CLIs (like claude) need Ctrl+C first since they trap SIGTERM
+   *  but respond to SIGINT from the controlling terminal. Two Ctrl+C attempts
+   *  handle cases where the first is absorbed by a confirmation prompt. */
   async stop(): Promise<void> {
     this.statusDetector.setStopped()
 
@@ -165,8 +172,8 @@ export class AgentProcess {
     if (this.ptyProcess) {
       try {
         this.ptyProcess.kill('SIGTERM')
-      } catch {
-        // Process may already be dead
+      } catch (err) {
+        logger.debug('SIGTERM failed (process may be dead):', err)
       }
     }
     if (await this.waitForExit(SIGTERM_TIMEOUT)) return
@@ -175,8 +182,8 @@ export class AgentProcess {
     if (this.ptyProcess) {
       try {
         this.ptyProcess.kill('SIGKILL')
-      } catch {
-        // Ignore
+      } catch (err) {
+        logger.debug('SIGKILL failed (process may be dead):', err)
       }
     }
     await this.waitForExit(SIGKILL_TIMEOUT)

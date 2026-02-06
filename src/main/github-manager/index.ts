@@ -1,5 +1,8 @@
-import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
+import { broadcast } from '../lib/broadcast'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('GitHubManager')
 import type { PrInfo, GhAuthStatus, GitHubProjectStatus, MergeResult } from '@shared/github-types'
 import { ghExec, isGhAvailable } from './gh-cli'
 import { detectGitRemote } from './git-remote'
@@ -125,10 +128,10 @@ export class GitHubManager {
     this.stopPolling(agentId)
 
     // Immediate fetch
-    this.fetchAndBroadcast(agentId, prUrl)
+    this.fetchAndBroadcast(agentId, prUrl).catch((err) => logger.error('Poll fetch failed:', err))
 
     const timer = setInterval(() => {
-      this.fetchAndBroadcast(agentId, prUrl)
+      this.fetchAndBroadcast(agentId, prUrl).catch((err) => logger.error('Poll fetch failed:', err))
     }, POLL_INTERVAL)
 
     this.polling.set(agentId, { agentId, prUrl, timer })
@@ -157,7 +160,7 @@ export class GitHubManager {
     const prInfo = await this.getPrInfo(prUrl)
     if (!prInfo) return
 
-    this.broadcast(IPC.GITHUB_PR_INFO_UPDATED, { agentId, prInfo })
+    this.broadcastEvent(IPC.GITHUB_PR_INFO_UPDATED, { agentId, prInfo })
 
     if (prInfo.state === 'MERGED') {
       this.stopPolling(agentId)
@@ -165,12 +168,8 @@ export class GitHubManager {
     }
   }
 
-  private broadcast(channel: string, data: unknown): void {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, data)
-      }
-    }
+  private broadcastEvent(channel: string, data: unknown): void {
+    broadcast(channel, data)
   }
 }
 

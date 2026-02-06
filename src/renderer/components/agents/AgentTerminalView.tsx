@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { useAgentStore } from '../../stores/agent-store'
+import { TERMINAL_OPTIONS } from '../../lib/terminal-config'
 import '@xterm/xterm/css/xterm.css'
 
 interface AgentTerminalViewProps {
@@ -33,35 +34,7 @@ export function AgentTerminalView({ agentId, onRerun }: AgentTerminalViewProps):
     let instance = agentTerminalInstances.get(agentId)
 
     if (!instance) {
-      const terminal = new Terminal({
-        theme: {
-          background: '#141420',
-          foreground: '#e4e4e9',
-          cursor: '#7c3aed',
-          selectionBackground: '#7c3aed44',
-          black: '#1e1e2e',
-          red: '#ef4444',
-          green: '#10b981',
-          yellow: '#f59e0b',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#06b6d4',
-          white: '#e4e4e9',
-          brightBlack: '#6b7280',
-          brightRed: '#f87171',
-          brightGreen: '#34d399',
-          brightYellow: '#fbbf24',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#22d3ee',
-          brightWhite: '#ffffff'
-        },
-        fontSize: 12,
-        fontFamily: 'SF Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        scrollback: 5000,
-        convertEol: true
-      })
+      const terminal = new Terminal(TERMINAL_OPTIONS)
 
       const fitAddon = new FitAddon()
       terminal.loadAddon(fitAddon)

@@ -2,62 +2,48 @@ import { useEffect } from 'react'
 import { useServiceStore } from '../stores/service-store'
 import { useAppStore } from '../stores/app-store'
 import { useDocsStore } from '../stores/docs-store'
-import type { ServiceStatus, ServiceConfig } from '@shared/types'
+import type { ServiceStatus, ProjectConfig } from '@shared/types'
 
 export function useIpcListeners(): void {
-  const updateStatus = useServiceStore((s) => s.updateStatus)
-  const updateExitCode = useServiceStore((s) => s.updateExitCode)
-  const updateHealthCheck = useServiceStore((s) => s.updateHealthCheck)
-  const setServices = useServiceStore((s) => s.setServices)
-  const setProjectName = useAppStore((s) => s.setProjectName)
-  const setConfigError = useAppStore((s) => s.setConfigError)
-  const setTerminalPanelOpen = useAppStore((s) => s.setTerminalPanelOpen)
-  const setActiveTerminalTab = useAppStore((s) => s.setActiveTerminalTab)
-  const removeRunningCommand = useDocsStore((s) => s.removeRunningCommand)
-
   useEffect(() => {
     const unsubStatus = window.api.onServiceStatusChanged(
       (data: { serviceId: string; status: string; pid?: number }) => {
-        updateStatus(data.serviceId, data.status as ServiceStatus, data.pid)
+        useServiceStore.getState().updateStatus(data.serviceId, data.status as ServiceStatus, data.pid)
         if (data.status === 'starting') {
-          setTerminalPanelOpen(true)
-          setActiveTerminalTab(data.serviceId)
+          useAppStore.getState().setTerminalPanelOpen(true)
+          useAppStore.getState().setActiveTerminalTab(data.serviceId)
         }
       }
     )
 
     const unsubExit = window.api.onServiceExit(
       (data: { serviceId: string; exitCode: number | null }) => {
-        updateExitCode(data.serviceId, data.exitCode)
+        useServiceStore.getState().updateExitCode(data.serviceId, data.exitCode)
       }
     )
 
     const unsubHealth = window.api.onHealthCheckResult(
       (data: { serviceId: string; healthy: boolean }) => {
-        updateHealthCheck(data.serviceId, data.healthy)
+        useServiceStore.getState().updateHealthCheck(data.serviceId, data.healthy)
       }
     )
 
     const unsubConfigChanged = window.api.onConfigChanged(
-      (config: unknown) => {
-        const cfg = config as {
-          project: { name: string }
-          services: Record<string, ServiceConfig>
-        }
-        setProjectName(cfg.project.name)
-        setServices(cfg.services)
+      (config: ProjectConfig) => {
+        useAppStore.getState().setProjectName(config.project.name)
+        useServiceStore.getState().setServices(config.services)
       }
     )
 
     const unsubConfigError = window.api.onConfigError(
       (error: string) => {
-        setConfigError(error)
+        useAppStore.getState().setConfigError(error)
       }
     )
 
     const unsubDocsExit = window.api.onDocsCommandExit(
       (data: { commandId: string; exitCode: number }) => {
-        removeRunningCommand(data.commandId)
+        useDocsStore.getState().removeRunningCommand(data.commandId)
       }
     )
 
@@ -69,5 +55,5 @@ export function useIpcListeners(): void {
       unsubConfigError()
       unsubDocsExit()
     }
-  }, [updateStatus, updateExitCode, updateHealthCheck, setServices, setProjectName, setConfigError, setTerminalPanelOpen, setActiveTerminalTab, removeRunningCommand])
+  }, [])
 }

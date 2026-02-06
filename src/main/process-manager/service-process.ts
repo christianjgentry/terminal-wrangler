@@ -2,6 +2,9 @@ import type * as pty from 'node-pty'
 import type { ServiceConfig, ServiceStatus } from '@shared/types'
 import { type ProcessEvents, OUTPUT_BUFFER_SIZE } from './types'
 import { cleanEnvForPty } from '../pty-env'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('ServiceProcess')
 
 const KILL_TIMEOUT = 5000
 
@@ -95,6 +98,8 @@ export class ServiceProcess {
     }
   }
 
+  /** Stop the service process: SIGTERM for graceful shutdown, then SIGKILL after timeout.
+   *  Standard daemon stop pattern — services should handle SIGTERM for clean exit. */
   async stop(): Promise<void> {
     if (!this.ptyProcess) {
       this.setStatus('stopped')
@@ -106,8 +111,8 @@ export class ServiceProcess {
     // Try graceful SIGTERM first
     try {
       this.ptyProcess.kill('SIGTERM')
-    } catch {
-      // Process may already be dead
+    } catch (err) {
+      logger.debug('SIGTERM failed (process may be dead):', err)
     }
 
     // Force kill after timeout
@@ -116,8 +121,8 @@ export class ServiceProcess {
         if (this.ptyProcess) {
           try {
             this.ptyProcess.kill('SIGKILL')
-          } catch {
-            // Ignore
+          } catch (err) {
+            logger.debug('SIGKILL failed (process may be dead):', err)
           }
         }
         resolve()

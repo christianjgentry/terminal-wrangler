@@ -1,6 +1,7 @@
-import { BrowserWindow, dialog } from 'electron'
+import { dialog } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '@shared/ipc-channels'
+import { broadcast } from '../lib/broadcast'
 import type { AgentStatus, AgentInfo, AgentTask, SubagentInfo, CreateAgentRequest } from '@shared/agent-types'
 import type { AgentProcessEvents } from './types'
 import { AgentProcess } from './agent-process'
@@ -32,21 +33,21 @@ export class AgentProcessManager {
         const info = this.agentInfos.get(agentId)
         if (info) {
           info.status = status
-          this.broadcast(IPC.AGENT_STATUS_CHANGED, { agentId, status })
+          this.broadcastEvent(IPC.AGENT_STATUS_CHANGED, { agentId, status })
           if (info.jiraIssueKey && this.onJiraStatusUpdate) {
             this.onJiraStatusUpdate(agentId, info.jiraIssueKey, status)
           }
         }
       },
       onData: (agentId, data) => {
-        this.broadcast(IPC.AGENT_TERMINAL_DATA, { agentId, data })
+        this.broadcastEvent(IPC.AGENT_TERMINAL_DATA, { agentId, data })
       },
       onExit: (agentId, exitCode) => {
         const info = this.agentInfos.get(agentId)
         if (info) {
           info.processAlive = false
         }
-        this.broadcast(IPC.AGENT_EXIT, { agentId, exitCode })
+        this.broadcastEvent(IPC.AGENT_EXIT, { agentId, exitCode })
       },
       onSubagentDetected: (agentId, taskDescription) => {
         const parentInfo = this.agentInfos.get(agentId)
@@ -75,7 +76,7 @@ export class AgentProcessManager {
         }
         this.agentInfos.set(subId, subagentInfo)
 
-        this.broadcast(IPC.AGENT_SUBAGENT_DETECTED, {
+        this.broadcastEvent(IPC.AGENT_SUBAGENT_DETECTED, {
           agentId,
           subagent: subagentInfo
         })
@@ -84,7 +85,7 @@ export class AgentProcessManager {
         const info = this.agentInfos.get(agentId)
         if (info) {
           info.detectedPrUrl = prUrl
-          this.broadcast(IPC.AGENT_PR_DETECTED, { agentId, prUrl })
+          this.broadcastEvent(IPC.AGENT_PR_DETECTED, { agentId, prUrl })
           githubManager.startPolling(agentId, prUrl)
           if (info.jiraIssueKey && this.onJiraPrDetected) {
             this.onJiraPrDetected(info.jiraIssueKey, prUrl)
@@ -95,27 +96,27 @@ export class AgentProcessManager {
         const info = this.agentInfos.get(agentId)
         if (info) {
           info.contextUsage = { used, max }
-          this.broadcast(IPC.AGENT_CONTEXT_USAGE, { agentId, used, max })
+          this.broadcastEvent(IPC.AGENT_CONTEXT_USAGE, { agentId, used, max })
         }
       },
       onTasksChanged: (agentId, tasks) => {
         const info = this.agentInfos.get(agentId)
         if (info) {
           info.tasks = tasks
-          this.broadcast(IPC.AGENT_TASKS_CHANGED, { agentId, tasks })
+          this.broadcastEvent(IPC.AGENT_TASKS_CHANGED, { agentId, tasks })
         }
       },
       onPlanDetected: (agentId, planFilePath) => {
         const info = this.agentInfos.get(agentId)
         if (info) {
           info.planFilePath = planFilePath
-          this.broadcast(IPC.AGENT_PLAN_DETECTED, { agentId, planFilePath })
+          this.broadcastEvent(IPC.AGENT_PLAN_DETECTED, { agentId, planFilePath })
         }
       },
       onInputNeeded: (agentId, prompt) => {
         const info = this.agentInfos.get(agentId)
         if (info) {
-          this.broadcast(IPC.AGENT_INPUT_NEEDED, { agentId, agentName: info.name, prompt })
+          this.broadcastEvent(IPC.AGENT_INPUT_NEEDED, { agentId, agentName: info.name, prompt })
         }
       }
     }
@@ -275,16 +276,12 @@ export class AgentProcessManager {
     const info = this.agentInfos.get(agentId)
     if (info) {
       info.status = status
-      this.broadcast(IPC.AGENT_STATUS_CHANGED, { agentId, status })
+      this.broadcastEvent(IPC.AGENT_STATUS_CHANGED, { agentId, status })
     }
   }
 
-  private broadcast(channel: string, data: unknown): void {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, data)
-      }
-    }
+  private broadcastEvent(channel: string, data: unknown): void {
+    broadcast(channel, data)
   }
 }
 

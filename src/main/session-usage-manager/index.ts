@@ -1,8 +1,11 @@
-import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { SessionUsageData } from '@shared/session-usage-types'
+import { broadcast } from '../lib/broadcast'
+import { createLogger } from '../lib/logger'
 import { readClaudeCredentials, refreshAccessToken } from './credentials'
 import { probeUsage, validateApiKey } from './api-probe'
+
+const logger = createLogger('SessionUsage')
 import { appStore } from '../store'
 
 const POLL_INTERVAL = 60_000
@@ -46,7 +49,7 @@ export class SessionUsageManager {
           error: null
         }
         this.cached = data
-        this.broadcast(data)
+        this.broadcastUsage(data)
         return data
       }
     }
@@ -69,7 +72,7 @@ export class SessionUsageManager {
         error: validation.error
       }
       this.cached = data
-      this.broadcast(data)
+      this.broadcastUsage(data)
       return data
     }
 
@@ -87,13 +90,13 @@ export class SessionUsageManager {
       error: credsError ?? 'No credentials or API key configured'
     }
     this.cached = data
-    this.broadcast(data)
+    this.broadcastUsage(data)
     return data
   }
 
   startPolling(): void {
     if (this.timer) return
-    setTimeout(() => this.refresh(), 2_000)
+    setTimeout(() => this.refresh().catch((err) => logger.error('Initial refresh failed:', err)), 2_000)
     this.timer = setInterval(() => this.refresh(), POLL_INTERVAL)
   }
 
@@ -104,12 +107,8 @@ export class SessionUsageManager {
     }
   }
 
-  private broadcast(data: SessionUsageData | null): void {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(IPC.SESSION_USAGE_CHANGED, data)
-      }
-    }
+  private broadcastUsage(data: SessionUsageData | null): void {
+    broadcast(IPC.SESSION_USAGE_CHANGED, data)
   }
 }
 

@@ -1,7 +1,10 @@
-import { BrowserWindow } from 'electron'
 import type { JiraCredentials, JiraConnectionResult, JiraEpic, JiraStory, JiraTransition } from '@shared/jira-types'
+import { broadcast } from '../lib/broadcast'
+import { createLogger } from '../lib/logger'
 import * as credentials from './credentials'
 import * as api from './api-client'
+
+const logger = createLogger('JiraManager')
 
 export class JiraManager {
   private epicCache = new Map<string, JiraEpic[]>()
@@ -53,7 +56,7 @@ export class JiraManager {
 
     const result = await api.fetchEpics(creds, projectKey)
     if (result.error || !result.data) {
-      console.error('[JiraManager] fetchEpics error:', result.error)
+      logger.error('fetchEpics error:', result.error)
       return []
     }
 
@@ -82,7 +85,7 @@ export class JiraManager {
 
     const result = await api.fetchStoriesByEpic(creds, epicKey)
     if (result.error || !result.data) {
-      console.error('[JiraManager] fetchStoriesByEpic error:', result.error)
+      logger.error('fetchStoriesByEpic error:', result.error)
       return []
     }
 
@@ -98,7 +101,7 @@ export class JiraManager {
 
     const result = await api.fetchIssue(creds, issueKey)
     if (result.error || !result.data) {
-      console.error('[JiraManager] fetchIssue error:', result.error)
+      logger.error('fetchIssue error:', result.error)
       return null
     }
     return result.data
@@ -112,7 +115,7 @@ export class JiraManager {
 
     const result = await api.getTransitions(creds, issueKey)
     if (result.error || !result.data) {
-      console.error('[JiraManager] getTransitions error:', result.error)
+      logger.error('getTransitions error:', result.error)
       return []
     }
     return result.data
@@ -126,7 +129,7 @@ export class JiraManager {
 
     const result = await api.postComment(creds, issueKey, adfBody)
     if (result.error) {
-      console.error('[JiraManager] postComment error:', result.error)
+      logger.error('postComment error:', result.error)
       return false
     }
     return true
@@ -140,7 +143,7 @@ export class JiraManager {
 
     const result = await api.transitionIssue(creds, issueKey, transitionId)
     if (result.error) {
-      console.error('[JiraManager] transitionIssue error:', result.error)
+      logger.error('transitionIssue error:', result.error)
       return false
     }
     return true
@@ -156,7 +159,7 @@ export class JiraManager {
         await this.addComment(issueKey, adfBody)
       }
     } catch (err) {
-      console.error('[JiraManager] lifecycle comment failed:', err)
+      logger.error('lifecycle comment failed:', err)
     }
   }
 
@@ -170,18 +173,14 @@ export class JiraManager {
         await this.transitionIssue(issueKey, match.id)
       }
     } catch (err) {
-      console.error('[JiraManager] tryTransition failed:', err)
+      logger.error('tryTransition failed:', err)
     }
   }
 
   // ── Broadcast ──────────────────────────────────
 
-  private broadcast(channel: string, data: unknown): void {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, data)
-      }
-    }
+  private broadcastEvent(channel: string, data: unknown): void {
+    broadcast(channel, data)
   }
 }
 

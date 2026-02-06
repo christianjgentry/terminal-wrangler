@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react'
 import type { AgentInfo } from '@shared/agent-types'
 import { agentStatusColors } from '../../lib/agent-status-colors'
 import { useGithubStore } from '../../stores/github-store'
@@ -17,7 +18,7 @@ interface AgentCardProps {
   onRerun: (agentId: string) => void
 }
 
-export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: AgentCardProps): JSX.Element {
+export const AgentCard = memo(function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: AgentCardProps): JSX.Element {
   const color = agentStatusColors[agent.status]
   const isSubagent = !!agent.parentAgentId
   const isProcessAlive = agent.processAlive !== false
@@ -28,11 +29,47 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
   const setAgentTerminalPanelOpen = useAppStore((s) => s.setAgentTerminalPanelOpen)
   const setAgentPlanViewId = useAppStore((s) => s.setAgentPlanViewId)
 
-  const handleOpenTerminal = (): void => {
-    // For subagents, open the parent's terminal
-    const terminalId = agent.parentAgentId || agent.id
+  const terminalId = agent.parentAgentId || agent.id
+
+  const handleOpenTerminal = useCallback(() => {
     onOpenTerminal(terminalId)
-  }
+  }, [onOpenTerminal, terminalId])
+
+  const handleStop = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onStop(agent.id)
+  }, [onStop, agent.id])
+
+  const handleRemove = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onRemove(agent.id)
+  }, [onRemove, agent.id])
+
+  const handleRerun = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onRerun(agent.id)
+  }, [onRerun, agent.id])
+
+  const handleMarkDone = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    window.api.markAgentDone(agent.id)
+  }, [agent.id])
+
+  const handleViewPlan = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setActiveAgentTerminalTab(terminalId)
+    setAgentTerminalPanelOpen(true)
+    setAgentPlanViewId(terminalId)
+  }, [terminalId, setActiveAgentTerminalTab, setAgentTerminalPanelOpen, setAgentPlanViewId])
+
+  const handleTerminalButton = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    handleOpenTerminal()
+  }, [handleOpenTerminal])
+
+  const handleMerged = useCallback(() => {
+    updateStatus(agent.id, 'done')
+  }, [updateStatus, agent.id])
 
   return (
     <div
@@ -83,13 +120,7 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
             )}
             {agent.planFilePath && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const terminalId = agent.parentAgentId || agent.id
-                  setActiveAgentTerminalTab(terminalId)
-                  setAgentTerminalPanelOpen(true)
-                  setAgentPlanViewId(terminalId)
-                }}
+                onClick={handleViewPlan}
                 className="text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 px-1.5 py-0.5 rounded transition-colors"
               >
                 View Plan
@@ -108,26 +139,20 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
                 prUrl={agent.detectedPrUrl}
                 prInfo={prInfo}
                 agentId={agent.id}
-                onMerged={() => updateStatus(agent.id, 'done')}
+                onMerged={handleMerged}
               />
             )}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleOpenTerminal()
-              }}
+              onClick={handleTerminalButton}
               className="px-1.5 py-0.5 text-[9px] text-surface-400 hover:text-white bg-surface-700 hover:bg-surface-600 rounded transition-colors"
             >
               Terminal
             </button>
             {isProcessAlive && !isTerminalStatus && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onStop(agent.id)
-                }}
+                onClick={handleStop}
                 className="px-1.5 py-0.5 text-[9px] text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
               >
                 Stop
@@ -136,19 +161,13 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
             {!isProcessAlive && !isTerminalStatus && (
               <>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onRerun(agent.id)
-                  }}
+                  onClick={handleRerun}
                   className="px-1.5 py-0.5 text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 rounded transition-colors"
                 >
                   Re-run
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    window.api.markAgentDone(agent.id)
-                  }}
+                  onClick={handleMarkDone}
                   className="px-1.5 py-0.5 text-[9px] text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded transition-colors"
                 >
                   Done
@@ -157,20 +176,14 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
             )}
             {isTerminalStatus && !isProcessAlive && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onRerun(agent.id)
-                }}
+                onClick={handleRerun}
                 className="px-1.5 py-0.5 text-[9px] text-accent-light hover:text-white bg-accent/10 hover:bg-accent/20 rounded transition-colors"
               >
                 Re-run
               </button>
             )}
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onRemove(agent.id)
-              }}
+              onClick={handleRemove}
               className="px-1.5 py-0.5 text-[9px] text-surface-500 hover:text-red-400 bg-surface-700 hover:bg-red-500/10 rounded transition-colors"
             >
               Remove
@@ -185,4 +198,4 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
       )}
     </div>
   )
-}
+})

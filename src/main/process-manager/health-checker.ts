@@ -1,5 +1,8 @@
 import { exec } from 'child_process'
 import type { HealthCheckConfig } from '@shared/types'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('HealthChecker')
 
 interface HealthCheckCallbacks {
   onHealthy: (serviceId: string, output: string) => void
@@ -7,6 +10,7 @@ interface HealthCheckCallbacks {
 }
 
 interface HealthCheckState {
+  initialTimeout: NodeJS.Timeout | null
   timer: NodeJS.Timeout | null
   failureCount: number
   isHealthy: boolean
@@ -28,6 +32,7 @@ export class HealthChecker {
     this.stopChecking(serviceId)
 
     const state: HealthCheckState = {
+      initialTimeout: null,
       timer: null,
       failureCount: 0,
       isHealthy: false
@@ -36,37 +41,42 @@ export class HealthChecker {
     this.checks.set(serviceId, state)
 
     const runCheck = (): void => {
-      exec(
-        config.command,
-        {
-          cwd: workingDirectory,
-          timeout: Math.min(config.interval - 500, 10000)
-        },
-        (error, stdout, stderr) => {
-          const checkState = this.checks.get(serviceId)
-          if (!checkState) return
+      try {
+        exec(
+          config.command,
+          {
+            cwd: workingDirectory,
+            timeout: Math.min(config.interval - 500, 10000)
+          },
+          (error, stdout, stderr) => {
+            const checkState = this.checks.get(serviceId)
+            if (!checkState) return
 
-          if (error) {
-            checkState.failureCount++
-            const output = stderr || error.message
-            if (checkState.failureCount >= config.retries) {
-              checkState.isHealthy = false
-              this.callbacks.onUnhealthy(serviceId, output)
-            }
-          } else {
-            checkState.failureCount = 0
-            if (!checkState.isHealthy) {
-              checkState.isHealthy = true
-              this.callbacks.onHealthy(serviceId, stdout.trim())
+            if (error) {
+              checkState.failureCount++
+              const output = stderr || error.message
+              if (checkState.failureCount >= config.retries) {
+                checkState.isHealthy = false
+                this.callbacks.onUnhealthy(serviceId, output)
+              }
+            } else {
+              checkState.failureCount = 0
+              if (!checkState.isHealthy) {
+                checkState.isHealthy = true
+                this.callbacks.onHealthy(serviceId, stdout.trim())
+              }
             }
           }
-        }
-      )
+        )
+      } catch (err) {
+        logger.error(`Health check exec failed for ${serviceId}:`, err)
+      }
     }
 
     // Start with delay if configured
     const delay = config.startDelay || 0
-    setTimeout(() => {
+    state.initialTimeout = setTimeout(() => {
+      state.initialTimeout = null
       runCheck()
       state.timer = setInterval(runCheck, config.interval)
     }, delay)
@@ -74,8 +84,9 @@ export class HealthChecker {
 
   stopChecking(serviceId: string): void {
     const state = this.checks.get(serviceId)
-    if (state?.timer) {
-      clearInterval(state.timer)
+    if (state) {
+      if (state.initialTimeout) clearTimeout(state.initialTimeout)
+      if (state.timer) clearInterval(state.timer)
     }
     this.checks.delete(serviceId)
   }
