@@ -7,6 +7,7 @@ import { JiraEpicList } from './JiraEpicList'
 import { JiraStoryDetail } from './JiraStoryDetail'
 import { JiraSpawnDialog } from './JiraSpawnDialog'
 import { PlannerView } from '../planner/PlannerView'
+import { DiscoveryView } from '../discovery/DiscoveryView'
 import type { JiraMode } from '../../stores/jira-store'
 
 export function JiraBrowser(): JSX.Element {
@@ -28,6 +29,16 @@ export function JiraBrowser(): JSX.Element {
       <div className="flex-1 flex flex-col overflow-hidden">
         <ModeToggle mode={jiraMode} onModeChange={setJiraMode} />
         <PlannerView />
+      </div>
+    )
+  }
+
+  // Discovery mode is always accessible (doesn't require Jira connection)
+  if (jiraMode === 'discovery') {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <ModeToggle mode={jiraMode} onModeChange={setJiraMode} />
+        <DiscoveryView />
       </div>
     )
   }
@@ -97,6 +108,16 @@ function ModeToggle({
           }`}
         >
           Planner
+        </button>
+        <button
+          onClick={() => onModeChange('discovery')}
+          className={`px-2.5 py-1 text-[10px] font-medium rounded transition-colors ${
+            mode === 'discovery'
+              ? 'text-white bg-surface-700'
+              : 'text-surface-400 hover:text-surface-300'
+          }`}
+        >
+          Discovery
         </button>
       </div>
     </div>

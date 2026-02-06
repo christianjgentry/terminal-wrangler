@@ -35,6 +35,7 @@ export function JiraSpawnDialog(): JSX.Element {
   const [cwd, setCwd] = useState(projectPath || '')
   const [planMode, setPlanMode] = useState(false)
   const [createBranch, setCreateBranch] = useState(true)
+  const [includeDiscovery, setIncludeDiscovery] = useState(false)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,12 +65,22 @@ export function JiraSpawnDialog(): JSX.Element {
     setError(null)
 
     try {
+      let discoveryFiles: string[] | undefined
+      let discoveryLinkText = ''
+      if (includeDiscovery && projectPath) {
+        const ctx = await window.api.buildDiscoveryContext(projectPath)
+        if (ctx.filePaths.length > 0) discoveryFiles = ctx.filePaths
+        if (ctx.linkPromptText) discoveryLinkText = ctx.linkPromptText
+      }
+
       for (const st of storyTasks) {
         const branchName = st.key.toLowerCase()
+        const taskText = discoveryLinkText ? st.task + discoveryLinkText : st.task
         const agent = await window.api.createAgent({
           name: `${st.key}: ${st.summary}`,
-          task: st.task,
+          task: taskText,
           cwd: cwd.trim(),
+          files: discoveryFiles,
           planMode: planMode || undefined,
           createBranch: createBranch || undefined,
           branchName: createBranch ? branchName : undefined,
@@ -86,7 +97,7 @@ export function JiraSpawnDialog(): JSX.Element {
     } finally {
       setCreating(false)
     }
-  }, [storyTasks, cwd, planMode, createBranch, addAgent, clearStorySelection, handleClose, setActiveView])
+  }, [storyTasks, cwd, planMode, createBranch, includeDiscovery, projectPath, addAgent, clearStorySelection, handleClose, setActiveView])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -178,6 +189,28 @@ export function JiraSpawnDialog(): JSX.Element {
                 <span
                   className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
                     createBranch ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Include Discovery Toggle */}
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-medium text-surface-400 uppercase tracking-wider">
+                Include Discovery
+              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={includeDiscovery}
+                onClick={() => setIncludeDiscovery((v) => !v)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  includeDiscovery ? 'bg-accent' : 'bg-surface-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                    includeDiscovery ? 'translate-x-[18px]' : 'translate-x-[3px]'
                   }`}
                 />
               </button>

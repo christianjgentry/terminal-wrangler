@@ -12,6 +12,7 @@ interface PlannerState {
   editBuffer: string
   featureDescription: string
   includeConfluence: boolean
+  includeDiscovery: boolean
   loading: boolean
   saving: boolean
   spawning: boolean
@@ -28,6 +29,7 @@ interface PlannerState {
   saveFile: () => Promise<void>
   setFeatureDescription: (text: string) => void
   setIncludeConfluence: (include: boolean) => void
+  setIncludeDiscovery: (include: boolean) => void
   setDirDialogOpen: (open: boolean) => void
   spawnPlannerAgent: (projectKey?: string) => Promise<void>
 }
@@ -41,6 +43,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   editBuffer: '',
   featureDescription: '',
   includeConfluence: false,
+  includeDiscovery: false,
   loading: false,
   saving: false,
   spawning: false,
@@ -109,17 +112,21 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
   setFeatureDescription: (text) => set({ featureDescription: text }),
   setIncludeConfluence: (include) => set({ includeConfluence: include }),
+  setIncludeDiscovery: (include) => set({ includeDiscovery: include }),
   setDirDialogOpen: (open) => set({ dirDialogOpen: open }),
 
   spawnPlannerAgent: async (projectKey) => {
-    const { featureDescription, includeConfluence } = get()
+    const { featureDescription, includeConfluence, includeDiscovery } = get()
     if (!featureDescription.trim()) return
     set({ spawning: true, error: null })
+    const projectPath = useAppStore.getState().projectPath
     try {
       const agent = await window.api.spawnPlannerAgent({
         featureDescription: featureDescription.trim(),
         projectKey,
-        includeConfluence
+        includeConfluence,
+        includeDiscovery,
+        projectPath: includeDiscovery ? projectPath || undefined : undefined
       })
       useAgentStore.getState().addAgent(agent)
       useAppStore.getState().setActiveView('agents')

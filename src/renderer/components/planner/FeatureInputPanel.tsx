@@ -6,6 +6,8 @@ export function FeatureInputPanel(): JSX.Element {
   const setFeatureDescription = usePlannerStore((s) => s.setFeatureDescription)
   const includeConfluence = usePlannerStore((s) => s.includeConfluence)
   const setIncludeConfluence = usePlannerStore((s) => s.setIncludeConfluence)
+  const includeDiscovery = usePlannerStore((s) => s.includeDiscovery)
+  const setIncludeDiscovery = usePlannerStore((s) => s.setIncludeDiscovery)
   const spawnPlannerAgent = usePlannerStore((s) => s.spawnPlannerAgent)
   const spawning = usePlannerStore((s) => s.spawning)
   const error = usePlannerStore((s) => s.error)
@@ -62,6 +64,28 @@ export function FeatureInputPanel(): JSX.Element {
             <span
               className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
                 includeConfluence ? 'translate-x-[18px]' : 'translate-x-[3px]'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Include Discovery artifacts toggle */}
+        <div className="flex items-center justify-between">
+          <label className="text-[10px] font-medium text-surface-400 uppercase tracking-wider">
+            Include Discovery artifacts
+          </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={includeDiscovery}
+            onClick={() => setIncludeDiscovery(!includeDiscovery)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              includeDiscovery ? 'bg-accent' : 'bg-surface-700'
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                includeDiscovery ? 'translate-x-[18px]' : 'translate-x-[3px]'
               }`}
             />
           </button>

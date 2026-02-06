@@ -6,7 +6,7 @@ const logger = createRendererLogger('JiraStore')
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
-export type JiraMode = 'browse' | 'planner'
+export type JiraMode = 'browse' | 'planner' | 'discovery'
 
 interface JiraState {
   credentials: JiraCredentials | null

@@ -26,6 +26,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
   const [task, setTask] = useState('')
   const [cwd, setCwd] = useState(projectPath || '')
   const [files, setFiles] = useState<string[]>([])
+  const [includeDiscovery, setIncludeDiscovery] = useState(false)
   const [planMode, setPlanMode] = useState(false)
   const [createBranch, setCreateBranch] = useState(false)
   const [branchName, setBranchName] = useState('')
@@ -100,11 +101,24 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
     setCreating(true)
     setError(null)
     try {
+      let finalTask = task.trim()
+      let finalFiles = files.length > 0 ? [...files] : undefined
+
+      if (includeDiscovery && projectPath) {
+        const ctx = await window.api.buildDiscoveryContext(projectPath)
+        if (ctx.filePaths.length > 0) {
+          finalFiles = [...(finalFiles || []), ...ctx.filePaths]
+        }
+        if (ctx.linkPromptText) {
+          finalTask += ctx.linkPromptText
+        }
+      }
+
       const agent = await window.api.createAgent({
         name: name.trim(),
-        task: task.trim(),
+        task: finalTask,
         cwd: cwd.trim(),
-        files: files.length > 0 ? files : undefined,
+        files: finalFiles,
         planMode: planMode || undefined,
         createBranch: createBranch || undefined,
         branchName: createBranch ? branchName : undefined
@@ -114,6 +128,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
       setTask('')
       setCwd(projectPath || '')
       setFiles([])
+      setIncludeDiscovery(false)
       setPlanMode(false)
       setCreateBranch(false)
       setBranchName('')
@@ -126,7 +141,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
     } finally {
       setCreating(false)
     }
-  }, [name, task, cwd, files, planMode, createBranch, branchName, projectPath, addAgent, onClose])
+  }, [name, task, cwd, files, includeDiscovery, planMode, createBranch, branchName, projectPath, addAgent, onClose])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -206,6 +221,28 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
               <span
                 className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
                   planMode ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Include Discovery Toggle */}
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-medium text-surface-400 uppercase tracking-wider">
+              Include Discovery
+            </label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={includeDiscovery}
+              onClick={() => setIncludeDiscovery((v) => !v)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                includeDiscovery ? 'bg-accent' : 'bg-surface-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                  includeDiscovery ? 'translate-x-[18px]' : 'translate-x-[3px]'
                 }`}
               />
             </button>

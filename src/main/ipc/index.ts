@@ -14,11 +14,13 @@ import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
 import { jiraManager } from '../jira-manager'
 import { standardsManager } from '../standards-manager'
+import { discoveryManager } from '../discovery-manager'
 import { createLogger } from '../lib/logger'
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
 import type { JiraCredentials } from '@shared/jira-types'
 import type { PlanToJiraRequest } from '@shared/planner-types'
+import type { AddFileArtifactRequest, AddLinkArtifactRequest } from '@shared/discovery-types'
 
 const rendererLogger = createLogger('R:Renderer')
 
@@ -361,6 +363,35 @@ export function registerIpcHandlers(): void {
     await standardsManager.writeFile(relativePath, content)
   })
 
+  // ── Discovery ──────────────────────────────────────
+  handleWithLogging(IPC.DISCOVERY_INIT, async (_event, projectPath: string) => {
+    await discoveryManager.initDiscoveryFolder(projectPath)
+  })
+
+  handleWithLogging(IPC.DISCOVERY_EXISTS, async (_event, projectPath: string) => {
+    return discoveryManager.exists(projectPath)
+  })
+
+  handleWithLogging(IPC.DISCOVERY_LIST, async (_event, projectPath: string) => {
+    return discoveryManager.listArtifacts(projectPath)
+  })
+
+  handleWithLogging(IPC.DISCOVERY_ADD_FILES, async (_event, projectPath: string, request: AddFileArtifactRequest) => {
+    return discoveryManager.addFileArtifacts(projectPath, request)
+  })
+
+  handleWithLogging(IPC.DISCOVERY_ADD_LINK, async (_event, projectPath: string, request: AddLinkArtifactRequest) => {
+    return discoveryManager.addLink(projectPath, request)
+  })
+
+  handleWithLogging(IPC.DISCOVERY_REMOVE, async (_event, projectPath: string, id: string) => {
+    await discoveryManager.removeArtifact(projectPath, id)
+  })
+
+  handleWithLogging(IPC.DISCOVERY_BUILD_CONTEXT, async (_event, projectPath: string, artifactIds?: string[]) => {
+    return discoveryManager.buildContext(projectPath, artifactIds)
+  })
+
   handleWithLogging(IPC.PLANNER_SPAWN_AGENT, async (_event, request: PlanToJiraRequest) => {
     const skillPrompt = await standardsManager.getSkillPrompt()
     const filePaths = await standardsManager.getAbsolutePaths()
@@ -371,6 +402,17 @@ export function registerIpcHandlers(): void {
     }
     if (request.includeConfluence) {
       taskPrompt += '\n\nInclude Confluence documentation pages for the epics/stories.'
+    }
+
+    // Merge discovery context if enabled
+    if (request.includeDiscovery && request.projectPath) {
+      const ctx = await discoveryManager.buildContext(request.projectPath)
+      if (ctx.filePaths.length > 0) {
+        filePaths.push(...ctx.filePaths)
+      }
+      if (ctx.linkPromptText) {
+        taskPrompt += ctx.linkPromptText
+      }
     }
 
     const agentName = 'Jira Planner: ' + request.featureDescription.slice(0, 50)

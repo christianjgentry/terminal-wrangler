@@ -4,6 +4,7 @@ import { useServiceStore } from '../../stores/service-store'
 import { useAgentStore } from '../../stores/agent-store'
 import { useDocsStore } from '../../stores/docs-store'
 import { useJiraStore } from '../../stores/jira-store'
+import { useDiscoveryStore } from '../../stores/discovery-store'
 import type { ActiveView } from '../../stores/app-store'
 import { SessionUsageIndicator } from '../shared/SessionUsageIndicator'
 
@@ -37,6 +38,7 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
   const jiraShowDone = useJiraStore((s) => s.showDone)
   const setJiraShowDone = useJiraStore((s) => s.setShowDone)
   const jiraMode = useJiraStore((s) => s.jiraMode)
+  const discoveryArtifactCount = useDiscoveryStore((s) => s.artifacts.length)
 
   const runningCount = Object.values(services).filter(
     (s) => s.status === 'running' || s.status === 'starting'
@@ -236,6 +238,12 @@ export function ProjectHeader({ onStartAll, onStopAll }: ProjectHeaderProps): JS
         {activeView === 'jira' && jiraMode === 'planner' && jiraSelectedProjectKey && (
           <span className="text-[10px] font-mono text-accent-light bg-accent/10 px-2 py-0.5 rounded">
             {jiraSelectedProjectKey}
+          </span>
+        )}
+
+        {activeView === 'jira' && jiraMode === 'discovery' && discoveryArtifactCount > 0 && (
+          <span className="text-[10px] text-surface-400 bg-surface-800 px-2 py-0.5 rounded">
+            {discoveryArtifactCount} artifact{discoveryArtifactCount !== 1 ? 's' : ''}
           </span>
         )}
       </div>

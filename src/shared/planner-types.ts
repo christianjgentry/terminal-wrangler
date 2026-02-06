@@ -8,4 +8,6 @@ export interface PlanToJiraRequest {
   featureDescription: string
   projectKey?: string
   includeConfluence: boolean
+  includeDiscovery?: boolean
+  projectPath?: string
 }

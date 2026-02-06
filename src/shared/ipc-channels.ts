@@ -113,6 +113,15 @@ export const IPC = {
   STANDARDS_WRITE_FILE: 'standards:write-file',
   PLANNER_SPAWN_AGENT: 'planner:spawn-agent',
 
+  // Discovery
+  DISCOVERY_INIT: 'discovery:init',
+  DISCOVERY_EXISTS: 'discovery:exists',
+  DISCOVERY_LIST: 'discovery:list',
+  DISCOVERY_ADD_FILES: 'discovery:add-files',
+  DISCOVERY_ADD_LINK: 'discovery:add-link',
+  DISCOVERY_REMOVE: 'discovery:remove',
+  DISCOVERY_BUILD_CONTEXT: 'discovery:build-context',
+
   // Logging
   LOG_FROM_RENDERER: 'log:from-renderer'
 } as const

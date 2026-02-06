@@ -6,6 +6,7 @@ import type { GhAuthStatus, GitRemoteInfo, PrInfo, GitHubProjectStatus, MergeRes
 import type { SessionUsageData } from '@shared/session-usage-types'
 import type { JiraCredentials, JiraConnectionResult, JiraEpic, JiraStory, JiraTransition } from '@shared/jira-types'
 import type { StandardsFile, PlanToJiraRequest } from '@shared/planner-types'
+import type { AnyArtifact, AddFileArtifactRequest, AddLinkArtifactRequest, DiscoveryContext } from '@shared/discovery-types'
 
 const api = {
   // Dialog
@@ -350,6 +351,22 @@ const api = {
     ipcRenderer.invoke(IPC.STANDARDS_WRITE_FILE, relativePath, content),
   spawnPlannerAgent: (request: PlanToJiraRequest): Promise<AgentInfo> =>
     ipcRenderer.invoke(IPC.PLANNER_SPAWN_AGENT, request),
+
+  // Discovery
+  initDiscovery: (projectPath: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_INIT, projectPath),
+  discoveryExists: (projectPath: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_EXISTS, projectPath),
+  listDiscoveryArtifacts: (projectPath: string): Promise<AnyArtifact[]> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_LIST, projectPath),
+  addDiscoveryFiles: (projectPath: string, request: AddFileArtifactRequest): Promise<AnyArtifact[]> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_ADD_FILES, projectPath, request),
+  addDiscoveryLink: (projectPath: string, request: AddLinkArtifactRequest): Promise<import('@shared/discovery-types').LinkArtifact> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_ADD_LINK, projectPath, request),
+  removeDiscoveryArtifact: (projectPath: string, id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_REMOVE, projectPath, id),
+  buildDiscoveryContext: (projectPath: string, artifactIds?: string[]): Promise<DiscoveryContext> =>
+    ipcRenderer.invoke(IPC.DISCOVERY_BUILD_CONTEXT, projectPath, artifactIds),
 
   // Logging
   log: (level: string, module: string, ...args: unknown[]): void => {
