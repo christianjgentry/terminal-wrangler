@@ -8,8 +8,14 @@ import { githubManager } from './github-manager'
 import { sessionUsageManager } from './session-usage-manager'
 import { configLoader } from './config'
 import { createLogger } from './lib/logger'
+import { initLogWriter, shutdownLogWriter, getLogFilePath } from './lib/log-writer'
+
+initLogWriter()
 
 const logger = createLogger('Main')
+
+logger.info(`App starting (version=${app.getVersion()}, pid=${process.pid})`)
+logger.info(`Log file: ${getLogFilePath()}`)
 
 process.on('unhandledRejection', (reason) => logger.error('Unhandled rejection:', reason))
 process.on('uncaughtException', (error) => logger.error('Uncaught exception:', error))
@@ -53,6 +59,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  logger.info('App ready')
   registerIpcHandlers()
   sessionUsageManager.startPolling()
   createWindow()
@@ -66,15 +73,18 @@ app.whenReady().then(() => {
 
 app.on('before-quit', async (event) => {
   event.preventDefault()
+  logger.info('App quitting — starting cleanup')
   try {
     sessionUsageManager.stopPolling()
     githubManager.stopAllPolling()
     await agentProcessManager.stopAll()
     await processManager.stopAll()
     await configLoader.stopWatching()
-  } catch {
-    // Best-effort cleanup
+  } catch (err) {
+    logger.error('Cleanup error:', err)
   }
+  logger.info('Cleanup complete, exiting')
+  shutdownLogWriter()
   app.exit(0)
 })
 

@@ -2,7 +2,10 @@ import { readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import yaml from 'js-yaml'
 import { configSchema } from './schema'
+import { createLogger } from '../lib/logger'
 import type { ProjectConfig, ServiceConfig } from '@shared/types'
+
+const logger = createLogger('ConfigLoader')
 
 const CONFIG_FILENAME = '.terminal-wrangler.yml'
 const ALT_CONFIG_FILENAME = '.terminal-wrangler.yaml'
@@ -13,6 +16,7 @@ export class ConfigLoader {
 
   async load(projectPath: string): Promise<ProjectConfig> {
     this.projectPath = projectPath
+    logger.info(`Loading config from ${projectPath}`)
 
     const configPath = this.findConfigFile(projectPath)
     if (!configPath) {
@@ -62,6 +66,8 @@ export class ConfigLoader {
     // Check for circular dependencies
     this.checkCircularDeps(services)
 
+    logger.info(`Config loaded: project '${validated.project.name}' with ${Object.keys(services).length} services`)
+
     return {
       project: {
         name: validated.project.name,
@@ -81,6 +87,7 @@ export class ConfigLoader {
     const configPath = this.findConfigFile(projectPath)
     if (!configPath) return
 
+    logger.info(`Watching config file: ${configPath}`)
     const chokidar = await import('chokidar')
     this.watcher = chokidar.watch(configPath, {
       ignoreInitial: true,
@@ -88,10 +95,12 @@ export class ConfigLoader {
     })
 
     this.watcher.on('change', async () => {
+      logger.info('Config file changed, reloading')
       try {
         const config = await this.load(projectPath)
         onChange(config)
       } catch (err) {
+        logger.error('Config reload failed:', err)
         onError(err instanceof Error ? err : new Error(String(err)))
       }
     })

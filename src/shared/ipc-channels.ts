@@ -111,7 +111,10 @@ export const IPC = {
   STANDARDS_LIST_FILES: 'standards:list-files',
   STANDARDS_READ_FILE: 'standards:read-file',
   STANDARDS_WRITE_FILE: 'standards:write-file',
-  PLANNER_SPAWN_AGENT: 'planner:spawn-agent'
+  PLANNER_SPAWN_AGENT: 'planner:spawn-agent',
+
+  // Logging
+  LOG_FROM_RENDERER: 'log:from-renderer'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

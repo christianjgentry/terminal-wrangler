@@ -74,6 +74,7 @@ export class AgentProcess {
     }
 
     this.outputBuffer = ''
+    logger.info(`Starting agent '${this.config.name}' (id: ${this.id}, cwd: ${this.config.cwd})`)
 
     try {
       const nodePty = await import('node-pty')
@@ -97,7 +98,10 @@ export class AgentProcess {
         this.statusDetector.feed(data)
       })
 
+      logger.info(`Agent '${this.config.name}' spawned (pid: ${this.ptyProcess.pid})`)
+
       this.ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
+        logger.info(`Agent '${this.config.name}' exited (code: ${exitCode})`)
         this.ptyProcess = null
 
         // Flush remaining batched output
@@ -141,6 +145,7 @@ export class AgentProcess {
         }
       }, 500)
     } catch (err) {
+      logger.error(`Agent '${this.config.name}' failed to start:`, err)
       this._status = 'error'
       this.events.onStatusChange(this.id, 'error')
       const msg = err instanceof Error ? err.message : String(err)
@@ -159,6 +164,8 @@ export class AgentProcess {
     if (!this.ptyProcess) {
       return
     }
+
+    logger.info(`Stopping agent '${this.config.name}' (pid: ${this.ptyProcess.pid})`)
 
     // Stage 1: Ctrl+C — sends SIGINT to the foreground process group
     this.ptyProcess.write('\x03')

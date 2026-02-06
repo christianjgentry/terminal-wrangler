@@ -43,6 +43,7 @@ export class ServiceProcess {
 
     this.setStatus('starting')
     this.outputBuffer = ''
+    logger.info(`Starting service '${this.id}' (command: ${this.config.command}, cwd: ${this.config.workingDirectory})`)
 
     try {
       // Dynamic import node-pty (native module)
@@ -70,6 +71,7 @@ export class ServiceProcess {
       })
 
       this.ptyProcess.onExit(({ exitCode }: { exitCode: number }) => {
+        logger.info(`Service '${this.id}' exited (code: ${exitCode})`)
         this.ptyProcess = null
 
         if (this._status === 'stopping') {
@@ -83,6 +85,8 @@ export class ServiceProcess {
         this.events.onExit(this.id, exitCode)
       })
 
+      logger.info(`Service '${this.id}' spawned (pid: ${this.ptyProcess.pid})`)
+
       // If no health check, transition to running immediately
       if (!this.config.healthCheck) {
         this.setStatus('running', this.ptyProcess.pid)
@@ -91,6 +95,7 @@ export class ServiceProcess {
         this.events.onStatusChange(this.id, 'starting', this.ptyProcess.pid)
       }
     } catch (err) {
+      logger.error(`Service '${this.id}' failed to start:`, err)
       this.setStatus('error')
       const msg = err instanceof Error ? err.message : String(err)
       this.appendOutput(`\r\n[Terminal Wrangler] Failed to start: ${msg}\r\n`)
@@ -106,6 +111,7 @@ export class ServiceProcess {
       return
     }
 
+    logger.info(`Stopping service '${this.id}'`)
     this.setStatus('stopping')
 
     // Try graceful SIGTERM first

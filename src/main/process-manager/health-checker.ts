@@ -39,6 +39,7 @@ export class HealthChecker {
     }
 
     this.checks.set(serviceId, state)
+    logger.debug(`Health checking started for '${serviceId}' (interval: ${config.interval}ms, retries: ${config.retries})`)
 
     const runCheck = (): void => {
       try {
@@ -56,12 +57,14 @@ export class HealthChecker {
               checkState.failureCount++
               const output = stderr || error.message
               if (checkState.failureCount >= config.retries) {
+                logger.warn(`Service '${serviceId}' unhealthy after ${config.retries} retries`)
                 checkState.isHealthy = false
                 this.callbacks.onUnhealthy(serviceId, output)
               }
             } else {
               checkState.failureCount = 0
               if (!checkState.isHealthy) {
+                logger.info(`Service '${serviceId}' is now healthy`)
                 checkState.isHealthy = true
                 this.callbacks.onHealthy(serviceId, stdout.trim())
               }

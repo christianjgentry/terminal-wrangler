@@ -1,7 +1,8 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { dialog, BrowserWindow } from 'electron'
 import { writeFileSync } from 'fs'
 import { join } from 'path'
 import { IPC } from '@shared/ipc-channels'
+import { handleWithLogging, onWithLogging } from './ipc-logger'
 import { configLoader } from '../config'
 import { configGenerator } from '../config/generator'
 import { processManager } from '../process-manager'
@@ -13,14 +14,32 @@ import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
 import { jiraManager } from '../jira-manager'
 import { standardsManager } from '../standards-manager'
+import { createLogger } from '../lib/logger'
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
 import type { JiraCredentials } from '@shared/jira-types'
 import type { PlanToJiraRequest } from '@shared/planner-types'
 
+const rendererLogger = createLogger('R:Renderer')
+
 export function registerIpcHandlers(): void {
+  // ── Renderer log forwarding ──────────────────────────
+  onWithLogging(
+    IPC.LOG_FROM_RENDERER,
+    (_event, payload: { level: string; module: string; args: unknown[] }) => {
+      const { level, module, args } = payload
+      const logger = createLogger(module)
+      const fn = logger[level as keyof typeof logger]
+      if (typeof fn === 'function') {
+        fn(...args)
+      } else {
+        rendererLogger.info(...args)
+      }
+    }
+  )
+
   // ── Dialog ──────────────────────────────────────────
-  ipcMain.handle(IPC.DIALOG_OPEN_FILES, async (event, defaultPath?: string) => {
+  handleWithLogging(IPC.DIALOG_OPEN_FILES, async (event, defaultPath?: string) => {
     const window = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow()
     if (!window) return null
 
@@ -38,7 +57,7 @@ export function registerIpcHandlers(): void {
   })
 
   // ── Project ──────────────────────────────────────────
-  ipcMain.handle(IPC.PROJECT_OPEN, async () => {
+  handleWithLogging(IPC.PROJECT_OPEN, async () => {
     const window = BrowserWindow.getFocusedWindow()
     if (!window) return null
 
@@ -54,7 +73,7 @@ export function registerIpcHandlers(): void {
     return result.filePaths[0]
   })
 
-  ipcMain.handle(IPC.PROJECT_OPEN_RECENT, async (_event, projectPath: string) => {
+  handleWithLogging(IPC.PROJECT_OPEN_RECENT, async (_event, projectPath: string) => {
     const config = await configLoader.load(projectPath)
     processManager.setConfigs(config.services)
     addRecentProject(projectPath, config.project.name)
@@ -63,7 +82,7 @@ export function registerIpcHandlers(): void {
   })
 
   // ── Config ──────────────────────────────────────────
-  ipcMain.handle(IPC.CONFIG_LOAD, async (_event, projectPath: string) => {
+  handleWithLogging(IPC.CONFIG_LOAD, async (_event, projectPath: string) => {
     const config = await configLoader.load(projectPath)
     processManager.setConfigs(config.services)
     addRecentProject(projectPath, config.project.name)
@@ -72,179 +91,179 @@ export function registerIpcHandlers(): void {
   })
 
   // ── Config generation ──────────────────────────────────
-  ipcMain.handle(IPC.CONFIG_GENERATE, (_event, projectPath: string) => {
+  handleWithLogging(IPC.CONFIG_GENERATE, (_event, projectPath: string) => {
     return configGenerator.generate(projectPath)
   })
 
-  ipcMain.handle(IPC.CONFIG_SAVE, (_event, projectPath: string, yamlContent: string) => {
+  handleWithLogging(IPC.CONFIG_SAVE, (_event, projectPath: string, yamlContent: string) => {
     const filePath = join(projectPath, '.terminal-wrangler.yml')
     writeFileSync(filePath, yamlContent, 'utf-8')
   })
 
   // ── Process management ──────────────────────────────
-  ipcMain.handle(IPC.PROCESS_START, async (_event, serviceId: string) => {
+  handleWithLogging(IPC.PROCESS_START, async (_event, serviceId: string) => {
     await processManager.startService(serviceId)
   })
 
-  ipcMain.handle(IPC.PROCESS_STOP, async (_event, serviceId: string) => {
+  handleWithLogging(IPC.PROCESS_STOP, async (_event, serviceId: string) => {
     await processManager.stopService(serviceId)
   })
 
-  ipcMain.handle(IPC.PROCESS_RESTART, async (_event, serviceId: string) => {
+  handleWithLogging(IPC.PROCESS_RESTART, async (_event, serviceId: string) => {
     await processManager.restartService(serviceId)
   })
 
-  ipcMain.handle(IPC.PROCESS_START_ALL, async () => {
+  handleWithLogging(IPC.PROCESS_START_ALL, async () => {
     await processManager.startAll()
   })
 
-  ipcMain.handle(IPC.PROCESS_STOP_ALL, async () => {
+  handleWithLogging(IPC.PROCESS_STOP_ALL, async () => {
     await processManager.stopAll()
   })
 
   // ── Terminal ──────────────────────────────────────────
-  ipcMain.on(IPC.TERMINAL_INPUT, (_event, { serviceId, data }: { serviceId: string; data: string }) => {
+  onWithLogging(IPC.TERMINAL_INPUT, (_event, { serviceId, data }: { serviceId: string; data: string }) => {
     processManager.writeInput(serviceId, data)
   })
 
-  ipcMain.on(IPC.TERMINAL_RESIZE, (_event, { serviceId, cols, rows }: { serviceId: string; cols: number; rows: number }) => {
+  onWithLogging(IPC.TERMINAL_RESIZE, (_event, { serviceId, cols, rows }: { serviceId: string; cols: number; rows: number }) => {
     processManager.resizeTerminal(serviceId, cols, rows)
   })
 
-  ipcMain.handle(IPC.TERMINAL_GET_BUFFER, (_event, serviceId: string) => {
+  handleWithLogging(IPC.TERMINAL_GET_BUFFER, (_event, serviceId: string) => {
     return processManager.getBuffer(serviceId)
   })
 
   // ── Docs panel ──────────────────────────────────────────
-  ipcMain.handle(IPC.DOCS_GET_PROJECT_DOCS, (_event, projectPath: string) => {
+  handleWithLogging(IPC.DOCS_GET_PROJECT_DOCS, (_event, projectPath: string) => {
     return getProjectDocs(projectPath)
   })
 
-  ipcMain.handle(
+  handleWithLogging(
     IPC.DOCS_RUN_COMMAND,
     async (_event, commandId: string, command: string, cwd: string, projectPath: string) => {
       await adhocProcess.runCommand(commandId, command, cwd, projectPath)
     }
   )
 
-  ipcMain.handle(IPC.DOCS_COMMAND_STOP, async (_event, commandId: string) => {
+  handleWithLogging(IPC.DOCS_COMMAND_STOP, async (_event, commandId: string) => {
     await adhocProcess.stopCommand(commandId)
   })
 
-  ipcMain.on(
+  onWithLogging(
     IPC.DOCS_COMMAND_INPUT,
     (_event, { commandId, data }: { commandId: string; data: string }) => {
       adhocProcess.writeInput(commandId, data)
     }
   )
 
-  ipcMain.on(
+  onWithLogging(
     IPC.DOCS_COMMAND_RESIZE,
     (_event, { commandId, cols, rows }: { commandId: string; cols: number; rows: number }) => {
       adhocProcess.resize(commandId, cols, rows)
     }
   )
 
-  ipcMain.handle(IPC.DOCS_COMMAND_GET_BUFFER, (_event, commandId: string) => {
+  handleWithLogging(IPC.DOCS_COMMAND_GET_BUFFER, (_event, commandId: string) => {
     return adhocProcess.getBuffer(commandId)
   })
 
   // ── Agent management ──────────────────────────────────
-  ipcMain.handle(IPC.AGENT_CREATE, async (_event, request: CreateAgentRequest) => {
+  handleWithLogging(IPC.AGENT_CREATE, async (_event, request: CreateAgentRequest) => {
     return agentProcessManager.createAgent(request)
   })
 
-  ipcMain.handle(IPC.AGENT_STOP, async (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_STOP, async (_event, agentId: string) => {
     await agentProcessManager.stopAgent(agentId)
   })
 
-  ipcMain.handle(IPC.AGENT_REMOVE, async (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_REMOVE, async (_event, agentId: string) => {
     await agentProcessManager.removeAgent(agentId)
   })
 
-  ipcMain.handle(IPC.AGENT_STOP_ALL, async () => {
+  handleWithLogging(IPC.AGENT_STOP_ALL, async () => {
     await agentProcessManager.stopAll()
   })
 
-  ipcMain.handle(IPC.AGENT_GET_ALL, () => {
+  handleWithLogging(IPC.AGENT_GET_ALL, () => {
     return agentProcessManager.getAllAgents()
   })
 
-  ipcMain.handle(IPC.AGENT_GET_STATE, (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_GET_STATE, (_event, agentId: string) => {
     return agentProcessManager.getAgentState(agentId)
   })
 
-  ipcMain.handle(IPC.AGENT_MARK_DONE, (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_MARK_DONE, (_event, agentId: string) => {
     agentProcessManager.updateAgentStatus(agentId, 'done')
   })
 
   // ── Agent terminal ──────────────────────────────────
-  ipcMain.on(
+  onWithLogging(
     IPC.AGENT_TERMINAL_INPUT,
     (_event, { agentId, data }: { agentId: string; data: string }) => {
       agentProcessManager.writeInput(agentId, data)
     }
   )
 
-  ipcMain.on(
+  onWithLogging(
     IPC.AGENT_TERMINAL_RESIZE,
     (_event, { agentId, cols, rows }: { agentId: string; cols: number; rows: number }) => {
       agentProcessManager.resizeTerminal(agentId, cols, rows)
     }
   )
 
-  ipcMain.handle(IPC.AGENT_TERMINAL_GET_BUFFER, (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_TERMINAL_GET_BUFFER, (_event, agentId: string) => {
     return agentProcessManager.getBuffer(agentId)
   })
 
-  ipcMain.handle(IPC.AGENT_GET_PLAN_CONTENT, (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_GET_PLAN_CONTENT, (_event, agentId: string) => {
     return agentProcessManager.getPlanContent(agentId)
   })
 
-  ipcMain.handle(IPC.AGENT_SAVE_PLAN, (_event, agentId: string) => {
+  handleWithLogging(IPC.AGENT_SAVE_PLAN, (_event, agentId: string) => {
     return agentProcessManager.savePlan(agentId)
   })
 
   // ── GitHub integration ──────────────────────────────
-  ipcMain.handle(IPC.GITHUB_GET_AUTH_STATUS, async () => {
+  handleWithLogging(IPC.GITHUB_GET_AUTH_STATUS, async () => {
     return githubManager.getAuthStatus()
   })
 
-  ipcMain.handle(IPC.GITHUB_GET_REMOTE, async (_event, cwd: string) => {
+  handleWithLogging(IPC.GITHUB_GET_REMOTE, async (_event, cwd: string) => {
     return githubManager.getRemote(cwd)
   })
 
-  ipcMain.handle(IPC.GITHUB_GET_PR_INFO, async (_event, prUrl: string) => {
+  handleWithLogging(IPC.GITHUB_GET_PR_INFO, async (_event, prUrl: string) => {
     return githubManager.getPrInfo(prUrl)
   })
 
-  ipcMain.handle(IPC.GITHUB_LIST_PRS, async (_event, cwd: string) => {
+  handleWithLogging(IPC.GITHUB_LIST_PRS, async (_event, cwd: string) => {
     return githubManager.listPrs(cwd)
   })
 
-  ipcMain.handle(IPC.GITHUB_GET_PROJECT_STATUS, async (_event, cwd: string) => {
+  handleWithLogging(IPC.GITHUB_GET_PROJECT_STATUS, async (_event, cwd: string) => {
     return githubManager.getProjectStatus(cwd)
   })
 
-  ipcMain.handle(IPC.GITHUB_MERGE_PR, async (_event, prUrl: string) => {
+  handleWithLogging(IPC.GITHUB_MERGE_PR, async (_event, prUrl: string) => {
     return githubManager.mergePr(prUrl)
   })
 
-  ipcMain.handle(IPC.GITHUB_GET_PR_DIFF, async (_event, prUrl: string) => {
+  handleWithLogging(IPC.GITHUB_GET_PR_DIFF, async (_event, prUrl: string) => {
     return githubManager.getPrDiff(prUrl)
   })
 
   // ── Session usage ──────────────────────────────────────
-  ipcMain.handle(IPC.SESSION_USAGE_GET, async () => {
+  handleWithLogging(IPC.SESSION_USAGE_GET, async () => {
     return sessionUsageManager.getUsage()
   })
 
-  ipcMain.handle(IPC.SESSION_USAGE_REFRESH, async () => {
+  handleWithLogging(IPC.SESSION_USAGE_REFRESH, async () => {
     return sessionUsageManager.refresh()
   })
 
   // ── App settings ──────────────────────────────────────
-  ipcMain.handle(IPC.APP_GET_SETTINGS, () => {
+  handleWithLogging(IPC.APP_GET_SETTINGS, () => {
     return {
       recentProjects: appStore.get('recentProjects', []),
       windowBounds: appStore.get('windowBounds'),
@@ -254,95 +273,95 @@ export function registerIpcHandlers(): void {
     } as AppSettings
   })
 
-  ipcMain.handle(IPC.APP_SAVE_SETTINGS, (_event, settings: Partial<AppSettings>) => {
+  handleWithLogging(IPC.APP_SAVE_SETTINGS, (_event, settings: Partial<AppSettings>) => {
     for (const [key, value] of Object.entries(settings)) {
       appStore.set(key as keyof AppSettings, value)
     }
   })
 
-  ipcMain.handle(IPC.APP_GET_RECENT_PROJECTS, () => {
+  handleWithLogging(IPC.APP_GET_RECENT_PROJECTS, () => {
     return appStore.get('recentProjects', [])
   })
 
   // ── Jira integration ──────────────────────────────────
-  ipcMain.handle(IPC.JIRA_GET_CREDENTIALS, () => {
+  handleWithLogging(IPC.JIRA_GET_CREDENTIALS, () => {
     return jiraManager.getCredentials()
   })
 
-  ipcMain.handle(IPC.JIRA_SET_CREDENTIALS, (_event, creds: JiraCredentials) => {
+  handleWithLogging(IPC.JIRA_SET_CREDENTIALS, (_event, creds: JiraCredentials) => {
     jiraManager.setCredentials(creds)
   })
 
-  ipcMain.handle(IPC.JIRA_TEST_CONNECTION, async (_event, creds: JiraCredentials) => {
+  handleWithLogging(IPC.JIRA_TEST_CONNECTION, async (_event, creds: JiraCredentials) => {
     return jiraManager.testConnection(creds)
   })
 
-  ipcMain.handle(IPC.JIRA_GET_PROJECT_KEY, () => {
+  handleWithLogging(IPC.JIRA_GET_PROJECT_KEY, () => {
     return jiraManager.getProjectKey()
   })
 
-  ipcMain.handle(IPC.JIRA_SET_PROJECT_KEY, (_event, key: string) => {
+  handleWithLogging(IPC.JIRA_SET_PROJECT_KEY, (_event, key: string) => {
     jiraManager.setProjectKey(key)
   })
 
-  ipcMain.handle(IPC.JIRA_GET_EPICS, async (_event, projectKey: string) => {
+  handleWithLogging(IPC.JIRA_GET_EPICS, async (_event, projectKey: string) => {
     return jiraManager.getEpics(projectKey)
   })
 
-  ipcMain.handle(IPC.JIRA_GET_STORIES_BY_EPIC, async (_event, epicKey: string) => {
+  handleWithLogging(IPC.JIRA_GET_STORIES_BY_EPIC, async (_event, epicKey: string) => {
     return jiraManager.getStoriesByEpic(epicKey)
   })
 
-  ipcMain.handle(IPC.JIRA_GET_ISSUE, async (_event, issueKey: string) => {
+  handleWithLogging(IPC.JIRA_GET_ISSUE, async (_event, issueKey: string) => {
     return jiraManager.getIssue(issueKey)
   })
 
-  ipcMain.handle(IPC.JIRA_REFRESH_EPICS, async (_event, projectKey: string) => {
+  handleWithLogging(IPC.JIRA_REFRESH_EPICS, async (_event, projectKey: string) => {
     return jiraManager.refreshEpics(projectKey)
   })
 
-  ipcMain.handle(IPC.JIRA_REFRESH_STORIES, async (_event, epicKey: string) => {
+  handleWithLogging(IPC.JIRA_REFRESH_STORIES, async (_event, epicKey: string) => {
     return jiraManager.refreshStoriesByEpic(epicKey)
   })
 
-  ipcMain.handle(IPC.JIRA_ADD_COMMENT, async (_event, issueKey: string, adfBody: unknown) => {
+  handleWithLogging(IPC.JIRA_ADD_COMMENT, async (_event, issueKey: string, adfBody: unknown) => {
     return jiraManager.addComment(issueKey, adfBody)
   })
 
-  ipcMain.handle(IPC.JIRA_TRANSITION_ISSUE, async (_event, issueKey: string, transitionId: string) => {
+  handleWithLogging(IPC.JIRA_TRANSITION_ISSUE, async (_event, issueKey: string, transitionId: string) => {
     return jiraManager.transitionIssue(issueKey, transitionId)
   })
 
-  ipcMain.handle(IPC.JIRA_GET_TRANSITIONS, async (_event, issueKey: string) => {
+  handleWithLogging(IPC.JIRA_GET_TRANSITIONS, async (_event, issueKey: string) => {
     return jiraManager.getTransitions(issueKey)
   })
 
-  ipcMain.handle(IPC.JIRA_CLEAR_CREDENTIALS, () => {
+  handleWithLogging(IPC.JIRA_CLEAR_CREDENTIALS, () => {
     jiraManager.clearCredentials()
   })
 
   // ── Standards / Planner ──────────────────────────────
-  ipcMain.handle(IPC.STANDARDS_GET_DIR, () => {
+  handleWithLogging(IPC.STANDARDS_GET_DIR, () => {
     return standardsManager.getStandardsDir()
   })
 
-  ipcMain.handle(IPC.STANDARDS_SET_DIR, (_event, dir: string) => {
+  handleWithLogging(IPC.STANDARDS_SET_DIR, (_event, dir: string) => {
     standardsManager.setStandardsDir(dir)
   })
 
-  ipcMain.handle(IPC.STANDARDS_LIST_FILES, async () => {
+  handleWithLogging(IPC.STANDARDS_LIST_FILES, async () => {
     return standardsManager.listFiles()
   })
 
-  ipcMain.handle(IPC.STANDARDS_READ_FILE, async (_event, relativePath: string) => {
+  handleWithLogging(IPC.STANDARDS_READ_FILE, async (_event, relativePath: string) => {
     return standardsManager.readFile(relativePath)
   })
 
-  ipcMain.handle(IPC.STANDARDS_WRITE_FILE, async (_event, relativePath: string, content: string) => {
+  handleWithLogging(IPC.STANDARDS_WRITE_FILE, async (_event, relativePath: string, content: string) => {
     await standardsManager.writeFile(relativePath, content)
   })
 
-  ipcMain.handle(IPC.PLANNER_SPAWN_AGENT, async (_event, request: PlanToJiraRequest) => {
+  handleWithLogging(IPC.PLANNER_SPAWN_AGENT, async (_event, request: PlanToJiraRequest) => {
     const skillPrompt = await standardsManager.getSkillPrompt()
     const filePaths = await standardsManager.getAbsolutePaths()
 

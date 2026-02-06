@@ -1,7 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { installGlobalErrorHandlers } from './lib/global-error-handler'
 import './styles/globals.css'
+
+installGlobalErrorHandlers()
 
 // Prevent Electron's default file-drop navigation so React drop handlers work
 document.addEventListener('dragover', (e) => e.preventDefault())

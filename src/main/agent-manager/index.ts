@@ -2,6 +2,7 @@ import { dialog } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { IPC } from '@shared/ipc-channels'
 import { broadcast } from '../lib/broadcast'
+import { createLogger } from '../lib/logger'
 import type { AgentStatus, AgentInfo, AgentTask, SubagentInfo, CreateAgentRequest } from '@shared/agent-types'
 import type { AgentProcessEvents } from './types'
 import { AgentProcess } from './agent-process'
@@ -9,6 +10,8 @@ import { githubManager } from '../github-manager'
 import { detectGitRemote } from '../github-manager/git-remote'
 import { createBranchFromMain } from '../github-manager/git-branch'
 import { generateBranchName } from '@shared/branch-utils'
+
+const logger = createLogger('AgentManager')
 
 let agentCounter = 0
 
@@ -27,11 +30,13 @@ export class AgentProcessManager {
 
   async createAgent(request: CreateAgentRequest): Promise<AgentInfo> {
     const id = generateAgentId()
+    logger.info(`Creating agent '${request.name}' (id: ${id}, cwd: ${request.cwd})`)
 
     const events: AgentProcessEvents = {
       onStatusChange: (agentId, status) => {
         const info = this.agentInfos.get(agentId)
         if (info) {
+          logger.info(`Agent '${info.name}' status: ${status}`)
           info.status = status
           this.broadcastEvent(IPC.AGENT_STATUS_CHANGED, { agentId, status })
           if (info.jiraIssueKey && this.onJiraStatusUpdate) {
@@ -52,6 +57,7 @@ export class AgentProcessManager {
       onSubagentDetected: (agentId, taskDescription) => {
         const parentInfo = this.agentInfos.get(agentId)
         if (!parentInfo) return
+        logger.info(`Agent '${parentInfo.name}' spawned subagent: ${taskDescription.slice(0, 80)}`)
 
         const subId = generateAgentId()
         const subagent: SubagentInfo = {
@@ -84,6 +90,7 @@ export class AgentProcessManager {
       onPrDetected: (agentId, prUrl) => {
         const info = this.agentInfos.get(agentId)
         if (info) {
+          logger.info(`Agent '${info.name}' PR detected: ${prUrl}`)
           info.detectedPrUrl = prUrl
           this.broadcastEvent(IPC.AGENT_PR_DETECTED, { agentId, prUrl })
           githubManager.startPolling(agentId, prUrl)
@@ -160,6 +167,7 @@ export class AgentProcessManager {
 
     await agentProcess.start()
     info.pid = agentProcess.pid
+    logger.info(`Agent '${request.name}' started (id: ${id}, pid: ${info.pid})`)
 
     // Fire Jira pickup lifecycle event
     if (info.jiraIssueKey && this.onJiraStatusUpdate) {
@@ -179,6 +187,7 @@ export class AgentProcessManager {
 
   async removeAgent(agentId: string): Promise<void> {
     const info = this.agentInfos.get(agentId)
+    logger.info(`Removing agent '${info?.name ?? agentId}'`)
 
     // Collect subagent IDs before cleanup
     const subagentIds = info?.subagents.map((s) => s.id) || []

@@ -4,10 +4,13 @@ import { useAgentTerminalStore } from '../../stores/agent-terminal-store'
 import { useGithubStore } from '../../stores/github-store'
 import { useAppStore } from '../../stores/app-store'
 import { KANBAN_COLUMNS } from '../../lib/agent-status-colors'
+import { createRendererLogger } from '../../lib/logger'
 import { KanbanColumn } from './KanbanColumn'
 import { AgentCreateDialog } from './AgentCreateDialog'
 import { ConfirmStopDialog } from './ConfirmStopDialog'
 import { GitHubStatusBar } from './GitHubStatusBar'
+
+const logger = createRendererLogger('AgentBoard')
 import { disposeAgentTerminal } from './AgentTerminalView'
 
 export function AgentBoard(): JSX.Element {
@@ -109,7 +112,7 @@ export function AgentBoard(): JSX.Element {
         })
         addAgent(newAgent)
       } catch (err) {
-        console.error('Failed to re-run agent:', err)
+        logger.error('Failed to re-run agent:', err)
       }
     },
     [agents, activeAgentTerminalTab, addAgent, removeAgentFromStore, clearTerminalBuffer, removePrInfo, setActiveAgentTerminalTab, setAgentTerminalPanelOpen]

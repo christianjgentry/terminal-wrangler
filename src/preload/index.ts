@@ -349,7 +349,12 @@ const api = {
   writeStandardsFile: (relativePath: string, content: string): Promise<void> =>
     ipcRenderer.invoke(IPC.STANDARDS_WRITE_FILE, relativePath, content),
   spawnPlannerAgent: (request: PlanToJiraRequest): Promise<AgentInfo> =>
-    ipcRenderer.invoke(IPC.PLANNER_SPAWN_AGENT, request)
+    ipcRenderer.invoke(IPC.PLANNER_SPAWN_AGENT, request),
+
+  // Logging
+  log: (level: string, module: string, ...args: unknown[]): void => {
+    ipcRenderer.send(IPC.LOG_FROM_RENDERER, { level, module, args })
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

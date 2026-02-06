@@ -110,10 +110,13 @@ export class GitHubManager {
   }
 
   async mergePr(prUrl: string): Promise<MergeResult> {
+    logger.info(`Merging PR: ${prUrl}`)
     const result = await ghExec(['pr', 'merge', prUrl, '--squash', '--delete-branch'])
     if (result.exitCode !== 0) {
+      logger.error(`PR merge failed: ${result.stderr.trim()}`)
       return { success: false, error: result.stderr.trim() || 'Merge failed' }
     }
+    logger.info(`PR merged successfully: ${prUrl}`)
     return { success: true }
   }
 
@@ -124,6 +127,7 @@ export class GitHubManager {
   }
 
   startPolling(agentId: string, prUrl: string): void {
+    logger.info(`Starting PR polling for agent ${agentId}: ${prUrl}`)
     // Stop existing poll for this agent if any
     this.stopPolling(agentId)
 
@@ -140,6 +144,7 @@ export class GitHubManager {
   stopPolling(agentId: string): void {
     const entry = this.polling.get(agentId)
     if (entry) {
+      logger.info(`Stopping PR polling for agent ${agentId}`)
       clearInterval(entry.timer)
       this.polling.delete(agentId)
     }
@@ -163,6 +168,7 @@ export class GitHubManager {
     this.broadcastEvent(IPC.GITHUB_PR_INFO_UPDATED, { agentId, prInfo })
 
     if (prInfo.state === 'MERGED') {
+      logger.info(`PR merged for agent ${agentId}: ${prUrl}`)
       this.stopPolling(agentId)
       this.onPrMerged?.(agentId)
     }

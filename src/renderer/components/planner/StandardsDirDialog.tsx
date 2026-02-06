@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react'
 import { usePlannerStore } from '../../stores/planner-store'
+import { createRendererLogger } from '../../lib/logger'
+
+const logger = createRendererLogger('StandardsDirDialog')
 
 export function StandardsDirDialog(): JSX.Element {
   const currentDir = usePlannerStore((s) => s.standardsDir)
@@ -21,7 +24,7 @@ export function StandardsDirDialog(): JSX.Element {
         setDirPath(selected)
       }
     } catch (err) {
-      console.error('Failed to open directory dialog:', err)
+      logger.error('Failed to open directory dialog:', err)
     }
   }, [])
 

@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { useDocsStore } from '../../stores/docs-store'
+import { createRendererLogger } from '../../lib/logger'
 import type { DetectedScript } from '@shared/types'
+
+const logger = createRendererLogger('ScriptList')
 
 interface ScriptListProps {
   scripts: DetectedScript[]
@@ -27,7 +30,7 @@ export function ScriptList({ scripts, projectPath }: ScriptListProps): JSX.Eleme
         setTerminalPanelOpen(true)
         setActiveTerminalTab(`adhoc:${script.id}`)
       } catch (err) {
-        console.error('Failed to run command:', err)
+        logger.error('Failed to run command:', err)
       }
     },
     [projectPath, addRunningCommand, setTerminalPanelOpen, setActiveTerminalTab]
@@ -37,7 +40,7 @@ export function ScriptList({ scripts, projectPath }: ScriptListProps): JSX.Eleme
     try {
       await window.api.stopDocsCommand(script.id)
     } catch (err) {
-      console.error('Failed to stop command:', err)
+      logger.error('Failed to stop command:', err)
     }
   }, [])
 

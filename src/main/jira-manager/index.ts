@@ -38,6 +38,7 @@ export class JiraManager {
   // ── Connection ──────────────────────────────────
 
   async testConnection(creds: JiraCredentials): Promise<JiraConnectionResult> {
+    logger.info(`Testing Jira connection to ${creds.baseUrl}`)
     return api.testJiraConnection(creds)
   }
 
@@ -152,6 +153,7 @@ export class JiraManager {
   // ── Lifecycle helpers (fire-and-forget) ──────────────────
 
   async postLifecycleComment(issueKey: string, status: string, extra?: string): Promise<void> {
+    logger.info(`Posting lifecycle comment to ${issueKey}: ${status}`)
     try {
       const { buildLifecycleComment } = await import('./lifecycle')
       const adfBody = buildLifecycleComment(status, extra)
@@ -164,6 +166,7 @@ export class JiraManager {
   }
 
   async tryTransition(issueKey: string, targetStatusName: string): Promise<void> {
+    logger.info(`Transitioning ${issueKey} to '${targetStatusName}'`)
     try {
       const transitions = await this.getTransitions(issueKey)
       const match = transitions.find(

@@ -1,7 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useAppStore } from '../../stores/app-store'
 import { useAgentStore } from '../../stores/agent-store'
+import { createRendererLogger } from '../../lib/logger'
 import { generateBranchName } from '@shared/branch-utils'
+
+const logger = createRendererLogger('AgentCreateDialog')
 
 interface AgentCreateDialogProps {
   open: boolean
@@ -56,7 +59,7 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps): JS
         addFiles(selected)
       }
     } catch (err) {
-      console.error('Failed to open file dialog:', err)
+      logger.error('Failed to open file dialog:', err)
     }
   }, [cwd, addFiles])
 

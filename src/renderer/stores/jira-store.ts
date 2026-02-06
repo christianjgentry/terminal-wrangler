@@ -1,5 +1,8 @@
 import { create } from 'zustand'
+import { createRendererLogger } from '../lib/logger'
 import type { JiraCredentials, JiraConnectionResult, JiraEpic, JiraStory } from '@shared/jira-types'
+
+const logger = createRendererLogger('JiraStore')
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -167,7 +170,7 @@ export const useJiraStore = create<JiraState>((set, get) => ({
         storiesByEpic: { ...state.storiesByEpic, [epicKey]: stories }
       }))
     } catch (err) {
-      console.error('Failed to fetch stories for epic:', epicKey, err)
+      logger.error('Failed to fetch stories for epic:', epicKey, err)
     }
   },
 

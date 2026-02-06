@@ -70,12 +70,14 @@ export class SessionUsageManager {
 
   startPolling(): void {
     if (this.timer) return
+    logger.info('Starting session usage polling')
     setTimeout(() => this.refresh().catch((err) => logger.error('Initial refresh failed:', err)), 2_000)
     this.timer = setInterval(() => this.refresh(), POLL_INTERVAL)
   }
 
   stopPolling(): void {
     if (this.timer) {
+      logger.info('Stopping session usage polling')
       clearInterval(this.timer)
       this.timer = null
     }
