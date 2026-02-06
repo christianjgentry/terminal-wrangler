@@ -37,6 +37,7 @@ export class SessionUsageManager {
           fiveHour: probe.fiveHour,
           sevenDay: probe.sevenDay,
           sevenDaySonnet: probe.sevenDaySonnet,
+          apiKeyRateLimits: null,
           status: deriveStatus(probe.fiveHour?.utilization ?? null),
           authMode: 'oauth',
           subscriptionType: creds.subscriptionType,
@@ -54,11 +55,13 @@ export class SessionUsageManager {
     const apiKey = appStore.get('anthropicApiKey') as string | undefined
     if (apiKey) {
       const validation = await validateApiKey(apiKey)
+      const maxUtil = maxApiKeyUtilization(validation.rateLimits)
       const data: SessionUsageData = {
         fiveHour: null,
         sevenDay: null,
         sevenDaySonnet: null,
-        status: validation.valid ? 'normal' : 'unknown',
+        apiKeyRateLimits: validation.rateLimits,
+        status: validation.valid ? deriveStatus(maxUtil) : 'unknown',
         authMode: 'api-key',
         subscriptionType: 'api-key',
         rateLimitTier: null,
@@ -75,6 +78,7 @@ export class SessionUsageManager {
       fiveHour: null,
       sevenDay: null,
       sevenDaySonnet: null,
+      apiKeyRateLimits: null,
       status: 'unknown',
       authMode: 'none',
       subscriptionType: null,
@@ -114,6 +118,14 @@ function deriveStatus(utilization: number | null): SessionUsageData['status'] {
   if (utilization >= 100) return 'exceeded'
   if (utilization >= 80) return 'approaching'
   return 'normal'
+}
+
+function maxApiKeyUtilization(limits: import('@shared/session-usage-types').ApiKeyRateLimits | null): number | null {
+  if (!limits) return null
+  const vals = [limits.requests, limits.tokens, limits.inputTokens, limits.outputTokens]
+    .filter((d) => d !== null)
+    .map((d) => d.utilization)
+  return vals.length > 0 ? Math.max(...vals) : null
 }
 
 export const sessionUsageManager = new SessionUsageManager()

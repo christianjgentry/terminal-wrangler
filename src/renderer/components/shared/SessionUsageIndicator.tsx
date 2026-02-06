@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react'
+import type { ApiKeyRateLimitDimension } from '@shared/session-usage-types'
 import { useSessionUsageStore } from '../../stores/session-usage-store'
 
 export function SessionUsageIndicator(): JSX.Element {
@@ -12,16 +13,18 @@ export function SessionUsageIndicator(): JSX.Element {
   const popoverRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Tick every 30s to keep countdown fresh (only when OAuth-connected)
+  // Tick every 30s to keep countdown fresh
   const [tick, setTick] = useState(0)
   const isOAuth = usage?.authMode === 'oauth'
   const oauthConnected = isOAuth && usage.error === null && (usage.fiveHour !== null || usage.sevenDay !== null)
+  const isApiKeyConnected = usage?.authMode === 'api-key' && usage.error === null
+  const hasApiKeyLimits = isApiKeyConnected && usage.apiKeyRateLimits !== null
 
   useEffect(() => {
-    if (!oauthConnected) return
+    if (!oauthConnected && !hasApiKeyLimits) return
     const id = setInterval(() => setTick((t) => t + 1), 30_000)
     return () => clearInterval(id)
-  }, [oauthConnected])
+  }, [oauthConnected, hasApiKeyLimits])
 
   const handleRetry = useCallback(async () => {
     if (refreshing) return
@@ -84,8 +87,6 @@ export function SessionUsageIndicator(): JSX.Element {
     if (showKeyInput) inputRef.current?.focus()
   }, [showKeyInput])
 
-  const isApiKeyConnected = usage?.authMode === 'api-key' && usage.error === null
-
   const { percent, colorClass, barColorClass, countdown, tooltip, pulse } = useMemo(() => {
     if (!oauthConnected || !usage) {
       return { percent: 0, colorClass: '', barColorClass: '', countdown: '', tooltip: '', pulse: false }
@@ -142,6 +143,36 @@ export function SessionUsageIndicator(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usage, oauthConnected, tick])
 
+  const apiKeyDisplay = useMemo(() => {
+    if (!hasApiKeyLimits || !usage?.apiKeyRateLimits) {
+      return { maxPct: 0, color: '', barColor: '', resetCd: '', dims: [] as { label: string; dim: ApiKeyRateLimitDimension }[], pulse: false }
+    }
+
+    const rl = usage.apiKeyRateLimits
+    const dims: { label: string; dim: ApiKeyRateLimitDimension }[] = []
+    if (rl.requests) dims.push({ label: 'Requests', dim: rl.requests })
+    if (rl.tokens) dims.push({ label: 'Tokens', dim: rl.tokens })
+    if (rl.inputTokens) dims.push({ label: 'Input tokens', dim: rl.inputTokens })
+    if (rl.outputTokens) dims.push({ label: 'Output tokens', dim: rl.outputTokens })
+
+    const maxPct = dims.length > 0 ? Math.max(...dims.map((d) => d.dim.utilization)) : 0
+    const isPulse = maxPct > 90
+
+    let color: string, barColor: string
+    if (maxPct > 80) { color = 'text-red-400'; barColor = 'bg-red-400' }
+    else if (maxPct > 60) { color = 'text-yellow-400'; barColor = 'bg-yellow-400' }
+    else { color = 'text-blue-400'; barColor = 'bg-blue-400' }
+
+    const earliest = dims.reduce<string>((best, d) => {
+      if (!best) return d.dim.resetAt
+      return new Date(d.dim.resetAt).getTime() < new Date(best).getTime() ? d.dim.resetAt : best
+    }, '')
+    const resetCd = formatCountdown(earliest)
+
+    return { maxPct, color, barColor, resetCd, dims, pulse: isPulse }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usage, hasApiKeyLimits, tick])
+
   // Refreshing state
   if (refreshing) {
     return (
@@ -157,13 +188,94 @@ export function SessionUsageIndicator(): JSX.Element {
     )
   }
 
-  // API key connected — show green dot instead of misleading percentage bar
+  // API key connected — show rate limit bar if data available, else green dot fallback
   if (isApiKeyConnected) {
+    if (hasApiKeyLimits && apiKeyDisplay.dims.length > 0) {
+      const tipLines = apiKeyDisplay.dims.map((d) => `${d.label}: ${d.dim.remaining.toLocaleString()} / ${d.dim.limit.toLocaleString()} remaining`)
+      tipLines.push('Rate limits reset every minute')
+      tipLines.push('Click to view details')
+      const apiTip = tipLines.join('\n')
+
+      return (
+        <div className="relative" ref={popoverRef}>
+          <button
+            onClick={() => setShowKeyInput((v) => !v)}
+            title={apiTip}
+            className="no-drag flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${apiKeyDisplay.barColor} ${apiKeyDisplay.pulse ? 'animate-pulse' : ''}`}
+                style={{ width: `${Math.min(apiKeyDisplay.maxPct, 100)}%` }}
+              />
+            </div>
+            <span className={`text-[10px] font-medium tabular-nums ${apiKeyDisplay.color}`}>
+              {apiKeyDisplay.maxPct}%
+            </span>
+            {apiKeyDisplay.resetCd && (
+              <>
+                <span className="text-[10px] text-surface-600">|</span>
+                <span className="text-[10px] text-surface-400 tabular-nums">{apiKeyDisplay.resetCd}</span>
+              </>
+            )}
+            <span className="text-[10px] text-surface-600">/min</span>
+          </button>
+
+          {showKeyInput && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-surface-800 border border-white/10 rounded-lg shadow-xl p-3 w-72">
+              <div className="text-[11px] font-medium text-surface-200 mb-2">
+                API Key Rate Limits <span className="text-surface-500 font-normal">(per minute)</span>
+              </div>
+
+              <div className="space-y-2 mb-3">
+                {apiKeyDisplay.dims.map((d) => (
+                  <div key={d.label}>
+                    <div className="flex justify-between text-[10px] mb-0.5">
+                      <span className="text-surface-400">{d.label}</span>
+                      <span className="text-surface-300 tabular-nums">
+                        {d.dim.remaining.toLocaleString()} / {d.dim.limit.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          d.dim.utilization > 80 ? 'bg-red-400' : d.dim.utilization > 60 ? 'bg-yellow-400' : 'bg-blue-400'
+                        }`}
+                        style={{ width: `${Math.min(d.dim.utilization, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-white/5 my-2" />
+
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={handleRefreshConnected}
+                  className="text-[10px] text-surface-500 hover:text-surface-300 transition-colors"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={handleClearKey}
+                  className="text-[10px] text-surface-500 hover:text-red-400 transition-colors"
+                >
+                  Clear API key
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // Fallback: no rate limit headers available
     return (
       <div className="relative" ref={popoverRef}>
         <button
           onClick={() => setShowKeyInput((v) => !v)}
-          title="Connected via API key\nUsage tracking requires Claude CLI OAuth\nClick to configure"
+          title="Connected via API key\nNo rate limit data available\nClick to configure"
           className="no-drag flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 transition-colors cursor-pointer"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
@@ -175,14 +287,14 @@ export function SessionUsageIndicator(): JSX.Element {
         {showKeyInput && (
           <div className="absolute right-0 top-full mt-1 z-50 bg-surface-800 border border-white/10 rounded-lg shadow-xl p-3 w-72">
             <div className="text-[11px] text-surface-300 mb-2">
-              API key is valid. Usage tracking requires Claude CLI OAuth credentials.
+              API key is valid. Rate limit headers were not returned.
             </div>
 
             <button
-              onClick={handleRetry}
+              onClick={handleRefreshConnected}
               className="w-full mb-2 px-2 py-1.5 text-[11px] font-medium text-surface-300 bg-white/5 hover:bg-white/10 rounded transition-colors"
             >
-              Retry OAuth connection
+              Refresh
             </button>
 
             <div className="border-t border-white/5 my-2" />
