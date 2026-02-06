@@ -296,8 +296,6 @@ const api = {
     ipcRenderer.invoke(IPC.SESSION_USAGE_GET),
   refreshSessionUsage: (): Promise<SessionUsageData | null> =>
     ipcRenderer.invoke(IPC.SESSION_USAGE_REFRESH),
-  setSessionUsageApiKey: (apiKey: string | null): Promise<SessionUsageData | null> =>
-    ipcRenderer.invoke(IPC.SESSION_USAGE_SET_API_KEY, apiKey),
   onSessionUsageChanged: (
     callback: (data: SessionUsageData | null) => void
   ): (() => void) => {

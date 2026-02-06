@@ -243,15 +243,6 @@ export function registerIpcHandlers(): void {
     return sessionUsageManager.refresh()
   })
 
-  ipcMain.handle(IPC.SESSION_USAGE_SET_API_KEY, async (_event, apiKey: string | null) => {
-    if (apiKey) {
-      appStore.set('anthropicApiKey', apiKey)
-    } else {
-      appStore.delete('anthropicApiKey' as keyof AppSettings)
-    }
-    return sessionUsageManager.refresh()
-  })
-
   // ── App settings ──────────────────────────────────────
   ipcMain.handle(IPC.APP_GET_SETTINGS, () => {
     return {

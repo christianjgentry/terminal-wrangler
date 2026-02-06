@@ -55,7 +55,6 @@ export interface AppSettings {
   terminalPanelHeight?: number
   sidebarWidth?: number
   docsPanelWidth?: number
-  anthropicApiKey?: string
   jiraCredentials?: import('@shared/jira-types').JiraCredentials
   jiraProjectKey?: string
 }

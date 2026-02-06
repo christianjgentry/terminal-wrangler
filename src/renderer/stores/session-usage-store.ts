@@ -7,7 +7,6 @@ interface SessionUsageState {
   setUsage: (data: SessionUsageData | null) => void
   fetchUsage: () => Promise<void>
   refreshUsage: () => Promise<void>
-  setApiKey: (apiKey: string | null) => Promise<void>
 }
 
 export const useSessionUsageStore = create<SessionUsageState>((set) => ({
@@ -22,11 +21,6 @@ export const useSessionUsageStore = create<SessionUsageState>((set) => ({
 
   refreshUsage: async () => {
     const data = await window.api.refreshSessionUsage()
-    set({ usage: data })
-  },
-
-  setApiKey: async (apiKey) => {
-    const data = await window.api.setSessionUsageApiKey(apiKey)
     set({ usage: data })
   }
 }))

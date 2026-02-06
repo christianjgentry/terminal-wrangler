@@ -1,18 +1,11 @@
 import https from 'https'
-import type { IncomingHttpHeaders } from 'http'
-import type { RateLimitWindow, ApiKeyRateLimits, ApiKeyRateLimitDimension } from '@shared/session-usage-types'
+import type { RateLimitWindow } from '@shared/session-usage-types'
 
 export interface ProbeResult {
   fiveHour: RateLimitWindow | null
   sevenDay: RateLimitWindow | null
   sevenDaySonnet: RateLimitWindow | null
   error: string | null
-}
-
-export interface ApiKeyValidation {
-  valid: boolean
-  error: string | null
-  rateLimits: ApiKeyRateLimits | null
 }
 
 export function probeUsage(accessToken: string): Promise<ProbeResult> {
@@ -81,90 +74,6 @@ export function probeUsage(accessToken: string): Promise<ProbeResult> {
 
     req.end()
   })
-}
-
-/**
- * Validate an API key using GET /v1/models — a read-only endpoint
- * that doesn't consume message credits or rate limit budget.
- */
-export function validateApiKey(apiKey: string): Promise<ApiKeyValidation> {
-  return new Promise((resolve) => {
-    const req = https.request(
-      {
-        hostname: 'api.anthropic.com',
-        path: '/v1/models',
-        method: 'GET',
-        headers: {
-          'anthropic-version': '2023-06-01',
-          'x-api-key': apiKey
-        },
-        timeout: 10_000
-      },
-      (res) => {
-        res.resume()
-        const httpStatus = res.statusCode ?? 0
-
-        if (httpStatus === 401) {
-          resolve({ valid: false, error: 'Invalid API key (401)', rateLimits: null })
-          return
-        }
-
-        if (httpStatus === 403) {
-          resolve({ valid: false, error: 'Access forbidden (403)', rateLimits: null })
-          return
-        }
-
-        if (httpStatus >= 400) {
-          resolve({ valid: false, error: `API error (${httpStatus})`, rateLimits: null })
-          return
-        }
-
-        resolve({ valid: true, error: null, rateLimits: parseRateLimitHeaders(res.headers) })
-      }
-    )
-
-    req.on('error', (err) => {
-      resolve({ valid: false, error: `Network error: ${err.message}`, rateLimits: null })
-    })
-
-    req.on('timeout', () => {
-      req.destroy()
-      resolve({ valid: false, error: 'Request timed out', rateLimits: null })
-    })
-
-    req.end()
-  })
-}
-
-function parseDimension(headers: IncomingHttpHeaders, prefix: string): ApiKeyRateLimitDimension | null {
-  const limitStr = headers[`${prefix}-limit`]
-  const remainStr = headers[`${prefix}-remaining`]
-  const resetStr = headers[`${prefix}-reset`]
-
-  if (!limitStr || !remainStr || !resetStr) return null
-
-  const limit = Number(limitStr)
-  const remaining = Number(remainStr)
-
-  if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(remaining)) return null
-
-  return {
-    limit,
-    remaining,
-    resetAt: String(resetStr),
-    utilization: Math.round(((limit - remaining) / limit) * 100)
-  }
-}
-
-function parseRateLimitHeaders(headers: IncomingHttpHeaders): ApiKeyRateLimits | null {
-  const requests = parseDimension(headers, 'anthropic-ratelimit-requests')
-  const tokens = parseDimension(headers, 'anthropic-ratelimit-tokens')
-  const inputTokens = parseDimension(headers, 'anthropic-ratelimit-input-tokens')
-  const outputTokens = parseDimension(headers, 'anthropic-ratelimit-output-tokens')
-
-  if (!requests && !tokens && !inputTokens && !outputTokens) return null
-
-  return { requests, tokens, inputTokens, outputTokens }
 }
 
 function parseWindow(

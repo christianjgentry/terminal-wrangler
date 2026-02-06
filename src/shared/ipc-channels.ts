@@ -89,8 +89,6 @@ export const IPC = {
   SESSION_USAGE_GET: 'session-usage:get',
   SESSION_USAGE_REFRESH: 'session-usage:refresh',
   SESSION_USAGE_CHANGED: 'session-usage:changed',
-  SESSION_USAGE_SET_API_KEY: 'session-usage:set-api-key',
-
   // Jira integration
   JIRA_GET_CREDENTIALS: 'jira:get-credentials',
   JIRA_SET_CREDENTIALS: 'jira:set-credentials',

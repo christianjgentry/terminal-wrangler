@@ -21,7 +21,7 @@ export interface JiraAuthInfo {
 
 export interface ClaudeAuthInfo {
   status: AuthStatus
-  authMode: 'oauth' | 'api-key' | 'none'
+  authMode: 'oauth' | 'none'
   subscriptionType: string | null
   rateLimitTier: string | null
   error: string | null
