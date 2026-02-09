@@ -12,6 +12,8 @@ import { appStore } from '../store'
 import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
 import { jiraManager } from '../jira-manager'
+import { discoveryManager } from '../discovery-manager'
+import type { AddFileArtifactRequest, AddLinkArtifactRequest } from '@shared/discovery-types'
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
 import type { JiraCredentials } from '@shared/jira-types'
@@ -344,6 +346,35 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.JIRA_CLEAR_CREDENTIALS, () => {
     jiraManager.clearCredentials()
+  })
+
+  // ── Discovery ──────────────────────────────────────────
+  ipcMain.handle(IPC.DISCOVERY_INIT, async (_event, projectPath: string) => {
+    return discoveryManager.initDiscoveryFolder(projectPath)
+  })
+
+  ipcMain.handle(IPC.DISCOVERY_EXISTS, async (_event, projectPath: string) => {
+    return discoveryManager.exists(projectPath)
+  })
+
+  ipcMain.handle(IPC.DISCOVERY_LIST, async (_event, projectPath: string) => {
+    return discoveryManager.listArtifacts(projectPath)
+  })
+
+  ipcMain.handle(IPC.DISCOVERY_ADD_FILES, async (_event, projectPath: string, request: AddFileArtifactRequest) => {
+    return discoveryManager.addFileArtifacts(projectPath, request)
+  })
+
+  ipcMain.handle(IPC.DISCOVERY_ADD_LINK, async (_event, projectPath: string, request: AddLinkArtifactRequest) => {
+    return discoveryManager.addLink(projectPath, request)
+  })
+
+  ipcMain.handle(IPC.DISCOVERY_REMOVE, async (_event, projectPath: string, id: string) => {
+    return discoveryManager.removeArtifact(projectPath, id)
+  })
+
+  ipcMain.handle(IPC.DISCOVERY_BUILD_CONTEXT, async (_event, projectPath: string, artifactIds?: string[]) => {
+    return discoveryManager.buildContext(projectPath, artifactIds)
   })
 
   // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge
