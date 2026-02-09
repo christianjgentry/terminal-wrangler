@@ -13,6 +13,7 @@ import { getProjectDocs } from '../docs/project-docs-provider'
 import * as adhocProcess from '../docs/adhoc-process'
 import { jiraManager } from '../jira-manager'
 import { discoveryManager } from '../discovery-manager'
+import { standardsManager } from '../standards-manager'
 import type { AddFileArtifactRequest, AddLinkArtifactRequest } from '@shared/discovery-types'
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
@@ -375,6 +376,27 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DISCOVERY_BUILD_CONTEXT, async (_event, projectPath: string, artifactIds?: string[]) => {
     return discoveryManager.buildContext(projectPath, artifactIds)
+  })
+
+  // ── Standards ──────────────────────────────────────────
+  ipcMain.handle(IPC.STANDARDS_GET_DIR, () => {
+    return standardsManager.getStandardsDir()
+  })
+
+  ipcMain.handle(IPC.STANDARDS_SET_DIR, (_event, dir: string) => {
+    standardsManager.setStandardsDir(dir)
+  })
+
+  ipcMain.handle(IPC.STANDARDS_LIST_FILES, async () => {
+    return standardsManager.listFiles()
+  })
+
+  ipcMain.handle(IPC.STANDARDS_READ_FILE, async (_event, relativePath: string) => {
+    return standardsManager.readFile(relativePath)
+  })
+
+  ipcMain.handle(IPC.STANDARDS_WRITE_FILE, async (_event, relativePath: string, content: string) => {
+    return standardsManager.writeFile(relativePath, content)
   })
 
   // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge
