@@ -8,6 +8,7 @@ import { githubManager } from '../github-manager'
 import { detectGitRemote } from '../github-manager/git-remote'
 import { createBranchFromMain } from '../github-manager/git-branch'
 import { generateBranchName } from '@shared/branch-utils'
+import { getJiraCredentials } from '../jira-manager/credentials'
 
 let agentCounter = 0
 
@@ -142,8 +143,21 @@ export class AgentProcessManager {
       }
     }
 
+    // Get Jira credentials for context injection
+    const jiraCredentials = getJiraCredentials()
+
     const agentProcess = new AgentProcess(
-      { id, name: request.name, task: request.task, cwd: request.cwd, files: request.files, branch },
+      {
+        id,
+        name: request.name,
+        task: request.task,
+        cwd: request.cwd,
+        files: request.files,
+        planMode: request.planMode,
+        branch,
+        jiraIssueKey: request.jiraIssueKey,
+        jiraCloudUrl: jiraCredentials?.cloudUrl
+      },
       events
     )
 

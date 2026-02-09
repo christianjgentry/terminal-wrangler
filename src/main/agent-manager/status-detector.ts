@@ -39,39 +39,53 @@ function isThinking(text: string): boolean {
 
 // Patterns that indicate Claude Code is waiting for user input at the prompt
 function matchesWaitingAtPrompt(text: string): { waiting: boolean; prompt: string } {
-  // Get the last ~500 chars to check for prompt patterns
-  const tail = text.slice(-500)
+  // Get the last ~1000 chars to check for prompt patterns
+  const tail = text.slice(-1000)
 
-  // Claude Code prompt patterns - waiting for user input
-  // Look for the ">" prompt or question patterns at the very end
+  // Check if we're at an input prompt - Claude Code uses ❯ or >
+  // The prompt character should be near the end (within last 20 chars)
+  const endChars = tail.slice(-20)
+  const hasInputPrompt = /[❯>]/.test(endChars)
 
-  // Pattern: ends with "> " (Claude Code's input prompt)
-  if (/>\s*$/.test(tail)) {
-    // Check if there's a question or context before the prompt
-    const contextMatch = tail.match(/([^\n]{0,100})\s*>\s*$/)
-    const context = contextMatch ? contextMatch[1].trim() : ''
-    return { waiting: true, prompt: context || 'Waiting for input' }
+  if (!hasInputPrompt) {
+    return { waiting: false, prompt: '' }
   }
 
-  // Pattern: ends with a question mark followed by whitespace/newline
-  const questionEnd = tail.match(/([^\n]{10,150}\?)\s*$/)
-  if (questionEnd) {
-    return { waiting: true, prompt: questionEnd[1].trim() }
+  // We're at an input prompt - now find what question/context to show
+
+  // Look for the last question in the output
+  const questions = tail.match(/[^.!?\n]{10,200}\?/g)
+  if (questions && questions.length > 0) {
+    // Return the last question found
+    return { waiting: true, prompt: questions[questions.length - 1].trim() }
   }
 
-  // Pattern: "(y/n)" or "[Y/n]" style prompts
-  const ynPrompt = tail.match(/(\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\))\s*:?\s*$/)
-  if (ynPrompt) {
-    const contextMatch = tail.match(/([^\n]{0,80})\s*(?:\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\))\s*:?\s*$/)
-    return { waiting: true, prompt: contextMatch ? contextMatch[1].trim() : 'Yes/No question' }
+  // Check for numbered options (1., 2., 3. etc.) - indicates choices presented
+  const hasNumberedOptions = /\n\s*1\.\s+.+\n\s*2\.\s+/m.test(tail)
+  if (hasNumberedOptions) {
+    // Try to find a question or prompt before the options
+    const beforeOptions = tail.match(/([^\n]{10,100})\s*\n\s*1\./m)
+    if (beforeOptions) {
+      return { waiting: true, prompt: beforeOptions[1].trim() }
+    }
+    return { waiting: true, prompt: 'Choose an option' }
   }
 
-  // Pattern: "Press Enter" or "Type" prompts
-  if (/(?:press enter|type .{1,30}|enter .{1,30})\s*:?\s*$/i.test(tail)) {
-    return { waiting: true, prompt: 'Waiting for input' }
+  // Look for common question phrases even without ?
+  const phraseMatch = tail.match(
+    /((?:would you like|do you want|should i|shall i|let me know|please (?:provide|specify|confirm)|what would you)[^.!?\n]{5,100})/i
+  )
+  if (phraseMatch) {
+    return { waiting: true, prompt: phraseMatch[1].trim() }
   }
 
-  return { waiting: false, prompt: '' }
+  // Check for y/n prompts
+  if (/\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\)/.test(tail)) {
+    return { waiting: true, prompt: 'Yes/No question' }
+  }
+
+  // Default - we're at a prompt but couldn't extract context
+  return { waiting: true, prompt: 'Waiting for input' }
 }
 
 export class StatusDetector {
@@ -150,8 +164,14 @@ export class StatusDetector {
   }
 
   private detectJiraTicketCreated(recent: string): boolean {
-    // Pattern: "Created Jira ticket XXX-123:"
-    return /Created Jira ticket [A-Z]+-\d+:/i.test(recent)
+    // Simple check: Any Atlassian/Jira browse URL means a ticket was created/linked
+    // Format: https://xxx.atlassian.net/browse/XXX-123
+    if (/https:\/\/[^\s]+\.atlassian\.net\/browse\/[A-Z]+-\d+/i.test(recent)) return true
+
+    // Also check for zeal-it or other common Jira URL patterns
+    if (/https:\/\/[^\s]+\/browse\/[A-Z]+-\d+/i.test(recent)) return true
+
+    return false
   }
 
   private checkIdleCompletion(): void {
@@ -216,8 +236,9 @@ export class StatusDetector {
   }
 
   private detectStatus(recent: string): AgentStatus | null {
-    // Priority 1: PR Ready - only trigger on actual PR URL
-    if (/https:\/\/github\.com\/[^\s]+\/pull\/\d+/.test(recent)) {
+    // Priority 1: PR Ready - trigger on actual PR URL or PR creation URL
+    // Matches: /pull/123 (existing PR) or /pull/new/branch-name (ready to create PR)
+    if (/https:\/\/github\.com\/[^\s]+\/pull\/(\d+|new\/)/.test(recent)) {
       return 'pr_ready'
     }
 
@@ -335,7 +356,8 @@ export class StatusDetector {
   }
 
   private detectPrUrls(recent: string): void {
-    const prMatch = recent.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/)
+    // Match both existing PRs (/pull/123) and PR creation URLs (/pull/new/branch)
+    const prMatch = recent.match(/https:\/\/github\.com\/[^\s]+\/pull\/(?:\d+|new\/[^\s]+)/)
     if (prMatch) {
       const url = prMatch[0]
       if (!this.detectedPrUrls.has(url)) {
@@ -367,7 +389,7 @@ export class StatusDetector {
       clearTimeout(this.idleTimer)
     }
 
-    // After 1.5 seconds of no new data, check if waiting at prompt
+    // After 1 second of no new data, check if waiting at prompt
     this.idleTimer = setTimeout(() => {
       if (this._isStopped || this.inputNeededCooldown) return
 
@@ -381,9 +403,9 @@ export class StatusDetector {
         setTimeout(() => {
           this.inputNeededCooldown = false
           this.lastInputPrompt = null // Reset so same prompt can trigger again
-        }, 10000) // 10 second cooldown between notifications
+        }, 5000) // 5 second cooldown between notifications
       }
-    }, 1500) // Wait 1.5 seconds of idle before checking
+    }, 1000) // Wait 1 second of idle before checking
   }
 
   clearInputNeeded(): void {

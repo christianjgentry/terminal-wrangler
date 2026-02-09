@@ -22,6 +22,8 @@ export interface AgentConfig {
   files?: string[]
   planMode?: boolean
   branch?: string // Branch name if agent should create a PR when done
+  jiraIssueKey?: string // Jira issue key if spawned from Jira
+  jiraCloudUrl?: string // Jira cloud URL for MCP context
 }
 
 export const OUTPUT_BUFFER_SIZE = 100 * 1024 // 100KB ring buffer
