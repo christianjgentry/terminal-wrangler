@@ -46,6 +46,9 @@ export class AgentProcess {
       },
       onInputNeeded: (prompt) => {
         this.events.onInputNeeded(this.id, prompt)
+      },
+      onCommitQuestionDetected: () => {
+        this.events.onCommitQuestionDetected(this.id)
       }
     })
   }
@@ -115,6 +118,10 @@ export class AgentProcess {
           let taskText = this.config.task
           if (this.config.planMode) {
             taskText = `Before implementing anything, first use the EnterPlanMode tool to create a detailed implementation plan. Once the plan is approved, proceed with implementation.\n\n${taskText}`
+          }
+          // If a branch was created, add instructions to create a PR when done
+          if (this.config.branch) {
+            taskText += `\n\nIMPORTANT: When you have completed all the work, you MUST create a pull request. Follow these steps:\n1. Stage all your changes with git add\n2. Commit with a descriptive message\n3. Push to the branch: git push -u origin ${this.config.branch}\n4. Create a PR using: gh pr create --title "<descriptive title>" --body "<summary of changes>"\n\nDo not finish until the PR is created.`
           }
           const sanitizedTask = taskText
             .replace(/\r\n/g, ' ')

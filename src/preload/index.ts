@@ -243,6 +243,16 @@ const api = {
     ipcRenderer.on(IPC.AGENT_INPUT_NEEDED, handler)
     return () => ipcRenderer.removeListener(IPC.AGENT_INPUT_NEEDED, handler)
   },
+  onAgentCommitQuestion: (
+    callback: (data: { agentId: string; agentName: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      data: { agentId: string; agentName: string }
+    ): void => callback(data)
+    ipcRenderer.on(IPC.AGENT_COMMIT_QUESTION, handler)
+    return () => ipcRenderer.removeListener(IPC.AGENT_COMMIT_QUESTION, handler)
+  },
 
   // Agent terminal
   onAgentTerminalData: (
@@ -277,6 +287,8 @@ const api = {
     ipcRenderer.invoke(IPC.GITHUB_GET_PROJECT_STATUS, cwd),
   mergePr: (prUrl: string): Promise<MergeResult> =>
     ipcRenderer.invoke(IPC.GITHUB_MERGE_PR, prUrl),
+  closePr: (prUrl: string): Promise<MergeResult> =>
+    ipcRenderer.invoke(IPC.GITHUB_CLOSE_PR, prUrl),
   getPrDiff: (prUrl: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC.GITHUB_GET_PR_DIFF, prUrl),
   onGithubPrInfoUpdated: (

@@ -66,6 +66,7 @@ export const IPC = {
   AGENT_TASKS_CHANGED: 'agent:tasks-changed',
   AGENT_PLAN_DETECTED: 'agent:plan-detected',
   AGENT_INPUT_NEEDED: 'agent:input-needed',
+  AGENT_COMMIT_QUESTION: 'agent:commit-question',
 
   // Agent terminal
   AGENT_TERMINAL_DATA: 'agent:terminal-data',
@@ -82,6 +83,7 @@ export const IPC = {
   GITHUB_LIST_PRS: 'github:list-prs',
   GITHUB_GET_PROJECT_STATUS: 'github:get-project-status',
   GITHUB_MERGE_PR: 'github:merge-pr',
+  GITHUB_CLOSE_PR: 'github:close-pr',
   GITHUB_GET_PR_DIFF: 'github:get-pr-diff',
   GITHUB_PR_INFO_UPDATED: 'github:pr-info-updated',
 

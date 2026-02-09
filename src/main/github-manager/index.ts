@@ -4,7 +4,7 @@ import type { PrInfo, GhAuthStatus, GitHubProjectStatus, MergeResult } from '@sh
 import { ghExec, isGhAvailable } from './gh-cli'
 import { detectGitRemote } from './git-remote'
 
-const POLL_INTERVAL = 30_000
+const POLL_INTERVAL = 60_000 // Poll every 60 seconds instead of 30 to reduce API calls
 
 interface PollingEntry {
   agentId: string
@@ -107,11 +107,43 @@ export class GitHubManager {
   }
 
   async mergePr(prUrl: string): Promise<MergeResult> {
-    const result = await ghExec(['pr', 'merge', prUrl, '--squash', '--delete-branch'])
-    if (result.exitCode !== 0) {
-      return { success: false, error: result.stderr.trim() || 'Merge failed' }
+    // Retry up to 3 times with delay for rate limiting
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const result = await ghExec(['pr', 'merge', prUrl, '--squash', '--delete-branch'])
+      if (result.exitCode === 0) {
+        return { success: true }
+      }
+      const error = result.stderr.trim()
+      // If rate limited, wait and retry
+      if (error.includes('429') || error.includes('throttl')) {
+        if (attempt < 3) {
+          await new Promise((r) => setTimeout(r, 5000 * attempt)) // 5s, 10s delays
+          continue
+        }
+      }
+      return { success: false, error: error || 'Merge failed' }
     }
-    return { success: true }
+    return { success: false, error: 'Merge failed after retries' }
+  }
+
+  async closePr(prUrl: string): Promise<MergeResult> {
+    // Retry up to 3 times with delay for rate limiting
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const result = await ghExec(['pr', 'close', prUrl, '--delete-branch'])
+      if (result.exitCode === 0) {
+        return { success: true }
+      }
+      const error = result.stderr.trim()
+      // If rate limited, wait and retry
+      if (error.includes('429') || error.includes('throttl')) {
+        if (attempt < 3) {
+          await new Promise((r) => setTimeout(r, 5000 * attempt)) // 5s, 10s delays
+          continue
+        }
+      }
+      return { success: false, error: error || 'Failed to close PR' }
+    }
+    return { success: false, error: 'Close failed after retries' }
   }
 
   async getPrDiff(prUrl: string): Promise<string | null> {

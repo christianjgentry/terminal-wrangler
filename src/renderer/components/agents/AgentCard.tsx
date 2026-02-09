@@ -108,13 +108,39 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
                 &#x2387; {agent.branch}
               </span>
             )}
-            {agent.detectedPrUrl && (
+            {agent.detectedPrUrl ? (
               <PrStatusSection
                 prUrl={agent.detectedPrUrl}
                 prInfo={prInfo}
                 agentId={agent.id}
                 onMerged={() => updateStatus(agent.id, 'done')}
               />
+            ) : agent.awaitingCommitResponse && (
+              <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+                <span className="text-[9px] text-yellow-400">
+                  💬 Respond in terminal to commit/push
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleOpenTerminal()
+                    }}
+                    className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
+                  >
+                    Open Terminal
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      updateStatus(agent.id, 'done')
+                    }}
+                    className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-surface-700 text-surface-300 hover:bg-surface-600"
+                  >
+                    Mark Done
+                  </button>
+                </div>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">

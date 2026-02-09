@@ -42,6 +42,7 @@ export interface AgentInfo {
   branch?: string
   processAlive?: boolean
   jiraIssueKey?: string
+  awaitingCommitResponse?: boolean // True when agent is asking about commit/push (no branch mode)
 }
 
 export interface CreateAgentRequest {

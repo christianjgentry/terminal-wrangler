@@ -30,105 +30,123 @@ const REVIEW_BADGE: Record<string, { label: string; className: string }> = {
 
 export function PrStatusSection({ prUrl, prInfo, agentId, onMerged }: PrStatusSectionProps): JSX.Element {
   const [merging, setMerging] = useState(false)
-  const [mergeError, setMergeError] = useState<string | null>(null)
+  const [declining, setDeclining] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
 
-  const handleMerge = async (): Promise<void> => {
+  const handleApprove = async (): Promise<void> => {
     setMerging(true)
-    setMergeError(null)
+    setActionError(null)
     const result = await window.api.mergePr(prUrl)
     setMerging(false)
     if (result.success) {
       onMerged?.()
     } else {
-      setMergeError(result.error ?? 'Merge failed')
-      setTimeout(() => setMergeError(null), 5000)
+      setActionError(result.error ?? 'Merge failed')
+      setTimeout(() => setActionError(null), 5000)
     }
   }
 
-  if (!prInfo) {
-    return (
-      <a
-        href={prUrl}
-        onClick={(e) => {
-          e.stopPropagation()
-          window.open(prUrl, '_blank')
-        }}
-        className="text-[9px] text-emerald-400 hover:text-emerald-300 truncate max-w-[120px]"
-      >
-        PR Link
-      </a>
-    )
+  const handleDecline = async (): Promise<void> => {
+    setDeclining(true)
+    setActionError(null)
+    const result = await window.api.closePr(prUrl)
+    setDeclining(false)
+    if (!result.success) {
+      setActionError(result.error ?? 'Failed to close PR')
+      setTimeout(() => setActionError(null), 5000)
+    }
   }
 
-  const state = STATE_BADGE[prInfo.state] ?? STATE_BADGE.OPEN
-  const checks = CHECKS_BADGE[prInfo.checksStatus] ?? CHECKS_BADGE.UNKNOWN
-  const review = prInfo.reviewDecision ? REVIEW_BADGE[prInfo.reviewDecision] : null
+  const state = prInfo ? (STATE_BADGE[prInfo.state] ?? STATE_BADGE.OPEN) : null
+  const checks = prInfo ? (CHECKS_BADGE[prInfo.checksStatus] ?? CHECKS_BADGE.UNKNOWN) : null
+  const review = prInfo?.reviewDecision ? REVIEW_BADGE[prInfo.reviewDecision] : null
 
-  const canMerge =
-    prInfo.state === 'OPEN' &&
-    prInfo.mergeable !== 'CONFLICTING' &&
-    prInfo.checksStatus !== 'FAILING'
+  const canMerge = prInfo
+    ? prInfo.state === 'OPEN' &&
+      prInfo.mergeable !== 'CONFLICTING' &&
+      prInfo.checksStatus !== 'FAILING'
+    : false
+
+  const isOpen = !prInfo || prInfo.state === 'OPEN'
 
   return (
     <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
-      <a
-        href={prInfo.url}
-        onClick={(e) => {
-          e.preventDefault()
-          window.open(prInfo.url, '_blank')
-        }}
-        className="text-[9px] text-emerald-400 hover:text-emerald-300 truncate block max-w-[180px]"
-        title={prInfo.title}
-      >
-        #{prInfo.number} {prInfo.title}
-      </a>
-      <div className="flex items-center gap-1 flex-wrap">
-        <span className={`text-[8px] px-1 py-px rounded ${state.className}`}>
-          {state.label}
-        </span>
-        <span className={`text-[8px] px-1 py-px rounded ${checks.className}`}>
-          {checks.label}
-        </span>
-        {review && (
-          <span className={`text-[8px] px-1 py-px rounded ${review.className}`}>
-            {review.label}
-          </span>
-        )}
-        {prInfo.mergeable === 'CONFLICTING' && (
-          <span className="text-[8px] px-1 py-px rounded bg-red-500/20 text-red-400">
-            Conflict
-          </span>
-        )}
-      </div>
+      {prInfo ? (
+        <a
+          href={prInfo.url}
+          onClick={(e) => {
+            e.preventDefault()
+            window.open(prInfo.url, '_blank')
+          }}
+          className="text-[9px] text-emerald-400 hover:text-emerald-300 truncate block max-w-[180px]"
+          title={prInfo.title}
+        >
+          #{prInfo.number} {prInfo.title}
+        </a>
+      ) : (
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] text-yellow-400">⏳ Loading PR info...</span>
+        </div>
+      )}
 
-      {/* Action buttons */}
-      {prInfo.state === 'OPEN' && (
+      {prInfo && (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className={`text-[8px] px-1 py-px rounded ${state!.className}`}>
+            {state!.label}
+          </span>
+          <span className={`text-[8px] px-1 py-px rounded ${checks!.className}`}>
+            {checks!.label}
+          </span>
+          {review && (
+            <span className={`text-[8px] px-1 py-px rounded ${review.className}`}>
+              {review.label}
+            </span>
+          )}
+          {prInfo.mergeable === 'CONFLICTING' && (
+            <span className="text-[8px] px-1 py-px rounded bg-red-500/20 text-red-400">
+              Conflict
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons - always show when PR is open or info not loaded */}
+      {isOpen && (
         <div className="flex items-center gap-1 pt-0.5">
           <button
-            onClick={handleMerge}
-            disabled={!canMerge || merging}
+            onClick={handleApprove}
+            disabled={!canMerge || merging || declining}
+            title={!prInfo ? 'Waiting for PR info...' : !canMerge ? 'Cannot merge' : 'Merge PR'}
             className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {merging ? 'Merging...' : 'Merge'}
+            {merging ? 'Approving...' : 'Approve'}
+          </button>
+          <button
+            onClick={handleDecline}
+            disabled={!prInfo || merging || declining}
+            title={!prInfo ? 'Waiting for PR info...' : 'Close PR without merging'}
+            className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {declining ? 'Declining...' : 'Decline'}
           </button>
           <button
             onClick={() => setShowDiff(true)}
             className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-surface-700 text-surface-300 hover:bg-surface-600"
           >
-            Diff
+            Changes
           </button>
           <button
-            onClick={() => window.open(prInfo.url, '_blank')}
+            onClick={() => window.open(prInfo?.url ?? prUrl, '_blank')}
             className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-surface-700 text-surface-300 hover:bg-surface-600"
           >
-            Open
+            Open PR
           </button>
         </div>
       )}
 
-      {mergeError && (
-        <p className="text-[8px] text-red-400 mt-0.5">{mergeError}</p>
+      {actionError && (
+        <p className="text-[8px] text-red-400 mt-0.5">{actionError}</p>
       )}
 
       {showDiff && (

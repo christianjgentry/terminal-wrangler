@@ -9,61 +9,33 @@ interface StatusDetectorEvents {
   onTasksChanged: (tasks: AgentTask[]) => void
   onPlanDetected: (planFilePath: string) => void
   onInputNeeded: (prompt: string) => void
+  onCommitQuestionDetected: () => void // Fired when Claude asks about committing (no-branch mode)
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
 const RECENT_WINDOW = 1500 // chars to check for pattern matching
-const EXTENDED_WINDOW = 3000 // larger window for building detection when in planning
-const DEBOUNCE_MS = 2000
-
-// Forward-only status progression ranks.
-// Higher rank = further along. Terminal states (done, error, stopped) always apply.
-const STATUS_RANK: Record<AgentStatus, number> = {
-  idle: 0,
-  planning: 1,
-  building: 2,
-  pr_ready: 3,
-  done: 4,
-  error: 4,
-  stopped: 4
-}
 
 const TERMINAL_STATUSES: Set<AgentStatus> = new Set(['done', 'error', 'stopped'])
 
 // --- Pattern helpers ---
 
-function matchesBuilding(text: string): boolean {
+// Planning = thinking/reading. Returns true if the CURRENT activity is planning.
+function isThinking(text: string): boolean {
+  // Get just the last ~300 chars to see current activity
+  const recent = text.slice(-300)
+
   return (
-    // Tool invocations: "Write(" or "Write src/..."
-    /\b(?:Write|Edit|MultiEdit)[\s(]/.test(text) ||
-    // Past-tense tool results
-    /\b(?:Wrote to|Updated|Created|Edited|Modified)\s/.test(text) ||
-    // Bash tool
-    /\bBash[\s(]/.test(text) ||
-    // Package manager commands
-    /\b(?:npm|yarn|pnpm)\s+(?:install|run|test|build)\b/.test(text) ||
-    // Git operations
-    /\bgit\s+(?:add|commit|push)\b/.test(text) ||
-    // Test runners
-    /\b(?:Running|Ran)\b.*\btest/i.test(text) ||
-    /\b(?:pytest|jest|vitest|mocha|cargo\s+test)\b/.test(text) ||
-    // File creation
-    /Creating file/i.test(text)
+    // Read/search tool invocations
+    /\b(?:Read|Glob|Grep|Ls|WebSearch|WebFetch)\b/i.test(recent) ||
+    // Thinking/reasoning
+    /\b(?:Thinking|Reasoning|Analyzing|Exploring|Examining|Investigating)\b/i.test(recent) ||
+    // Claude describing what it will do (planning phase)
+    /\b(?:I'll|Let me|I will|I need to|I'm going to)\s+(?:read|search|look|check|find|explore|examine|analyze|understand|investigate)/i.test(recent) ||
+    // Explicit plan
+    /\bPlan:/i.test(recent)
   )
 }
 
-function matchesPlanning(text: string): boolean {
-  return (
-    // Read/search tool invocations
-    /\b(?:Read|Glob|Grep|Ls|WebSearch|WebFetch)[\s(]/.test(text) ||
-    // Descriptive planning verbs
-    /\b(?:Searching|Analyzing|Reading|Exploring|Examining)\b/.test(text) ||
-    // Explicit plan
-    /\bPlan:/i.test(text) ||
-    // Thinking/reasoning indicators
-    /\b(?:Thinking|Reasoning)\b/.test(text)
-  )
-}
 
 // Patterns that indicate Claude Code is waiting for user input at the prompt
 function matchesWaitingAtPrompt(text: string): { waiting: boolean; prompt: string } {
@@ -121,6 +93,7 @@ export class StatusDetector {
   private inputNeededCooldown = false
   private idleTimer: NodeJS.Timeout | null = null
   private lastDataTime = 0
+  private commitQuestionDetected = false
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -155,6 +128,9 @@ export class StatusDetector {
 
     // Detect if input is needed
     this.detectInputNeeded(recent)
+
+    // Detect commit-related questions (for no-branch mode)
+    this.detectCommitQuestion(recent)
 
     // Determine status in priority order
     const detected = this.detectStatus(recent)
@@ -192,33 +168,24 @@ export class StatusDetector {
   }
 
   private detectStatus(recent: string): AgentStatus | null {
-    // Priority 1: PR Ready
-    if (
-      /github\.com\/[^\s]+\/pull\/\d+/.test(recent) ||
-      /gh pr create/.test(recent) ||
-      /Creating pull request/i.test(recent) ||
-      /git push.*origin/.test(recent)
-    ) {
+    // Priority 1: PR Ready - only trigger on actual PR URL
+    if (/https:\/\/github\.com\/[^\s]+\/pull\/\d+/.test(recent)) {
       return 'pr_ready'
     }
 
-    // Priority 3: Building
-    if (matchesBuilding(recent)) {
-      return 'building'
-    }
-
-    // Priority 3b: Extended building check when stuck in planning
-    // Look at a larger window to catch tool uses that scrolled past the recent window
-    if (this.currentStatus === 'planning') {
-      const extended = this.contextBuffer.slice(-EXTENDED_WINDOW)
-      if (matchesBuilding(extended)) {
-        return 'building'
-      }
-    }
-
-    // Priority 4: Planning
-    if (matchesPlanning(recent)) {
+    // If idle, start with planning on first activity
+    if (this.currentStatus === 'idle' && this.contextBuffer.length > 200) {
       return 'planning'
+    }
+
+    // Simple logic: thinking = planning, everything else = building
+    if (isThinking(this.contextBuffer)) {
+      return 'planning'
+    }
+
+    // If we have activity and not thinking, we're building
+    if (this.contextBuffer.length > 200) {
+      return 'building'
     }
 
     return null
@@ -232,53 +199,38 @@ export class StatusDetector {
       return
     }
 
-    // Forward-only: reject transitions that would go backward
-    const newRank = STATUS_RANK[newStatus]
-    const currentRank = STATUS_RANK[this.currentStatus]
-    if (newRank <= currentRank && !TERMINAL_STATUSES.has(this.currentStatus)) {
+    // pr_ready is sticky - once we have a PR, stay there until terminal
+    if (this.currentStatus === 'pr_ready') {
       return
     }
 
-    // Immediate transition from idle → planning
-    if (this.currentStatus === 'idle' && newStatus === 'planning') {
+    // Same status - no change needed
+    if (newStatus === this.currentStatus) {
+      return
+    }
+
+    // Immediate transition from idle
+    if (this.currentStatus === 'idle') {
       this.clearDebounce()
       this.setStatus(newStatus)
       return
     }
 
-    // Force through planning when jumping from idle to building or beyond
-    if (this.currentStatus === 'idle' && STATUS_RANK[newStatus] > STATUS_RANK['planning']) {
-      this.setStatus('planning')
-      this.pendingStatus = newStatus
-      this.debounceTimer = setTimeout(() => {
-        if (this.pendingStatus) {
-          const pendingRank = STATUS_RANK[this.pendingStatus]
-          const curRank = STATUS_RANK[this.currentStatus]
-          if (pendingRank > curRank || TERMINAL_STATUSES.has(this.pendingStatus)) {
-            this.setStatus(this.pendingStatus)
-          }
-          this.pendingStatus = null
-        }
-      }, DEBOUNCE_MS)
-      return
-    }
-
-    // Debounced transitions: planning→building, building→pr_ready
+    // Debounce transitions between planning/building to avoid flicker
     if (this.pendingStatus === newStatus) return
 
     this.clearDebounce()
     this.pendingStatus = newStatus
+
+    // Short debounce for planning→building, longer for building→planning
+    const debounceTime = newStatus === 'building' ? 500 : 1000
+
     this.debounceTimer = setTimeout(() => {
       if (this.pendingStatus) {
-        // Re-check forward-only at commit time
-        const pendingRank = STATUS_RANK[this.pendingStatus]
-        const curRank = STATUS_RANK[this.currentStatus]
-        if (pendingRank > curRank || TERMINAL_STATUSES.has(this.pendingStatus)) {
-          this.setStatus(this.pendingStatus)
-        }
+        this.setStatus(this.pendingStatus)
         this.pendingStatus = null
       }
-    }, DEBOUNCE_MS)
+    }, debounceTime)
   }
 
   private setStatus(status: AgentStatus): void {
@@ -393,6 +345,28 @@ export class StatusDetector {
       clearTimeout(this.idleTimer)
       this.idleTimer = null
     }
+  }
+
+  private detectCommitQuestion(recent: string): void {
+    // Only detect once and only when in building status
+    if (this.commitQuestionDetected || this.currentStatus !== 'building') return
+
+    // Look for commit-related questions
+    const hasCommitQuestion =
+      /(?:commit|push).*\?/i.test(recent) ||
+      /(?:should|would you like|want me to|shall).*(?:commit|push)/i.test(recent) ||
+      /(?:ready to|create a).*commit/i.test(recent) ||
+      /\[Y\/n\].*commit/i.test(recent) ||
+      /\[y\/N\].*commit/i.test(recent)
+
+    if (hasCommitQuestion) {
+      this.commitQuestionDetected = true
+      this.events.onCommitQuestionDetected()
+    }
+  }
+
+  resetCommitQuestionDetected(): void {
+    this.commitQuestionDetected = false
   }
 
   private detectTasks(): void {

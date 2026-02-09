@@ -18,6 +18,7 @@ export function useAgentIpcListeners(): void {
   const appendData = useAgentTerminalStore((s) => s.appendData)
   const setPrInfo = useGithubStore((s) => s.setPrInfo)
   const addNotification = useNotificationStore((s) => s.addNotification)
+  const setAwaitingCommitResponse = useAgentStore((s) => s.setAwaitingCommitResponse)
 
   useEffect(() => {
     const unsubStatus = window.api.onAgentStatusChanged(
@@ -83,6 +84,13 @@ export function useAgentIpcListeners(): void {
       }
     )
 
+    const unsubCommitQuestion = window.api.onAgentCommitQuestion(
+      (data: { agentId: string; agentName: string }) => {
+        setAwaitingCommitResponse(data.agentId, true)
+        addNotification(data.agentId, data.agentName, 'Ready to commit - respond in terminal')
+      }
+    )
+
     return () => {
       unsubStatus()
       unsubExit()
@@ -94,6 +102,7 @@ export function useAgentIpcListeners(): void {
       unsubPrInfo()
       unsubPlan()
       unsubInputNeeded()
+      unsubCommitQuestion()
     }
-  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, setProcessAlive, appendData, setPrInfo, addNotification])
+  }, [addAgent, updateStatus, addSubagent, setPrUrl, setPlanFilePath, updateContextUsage, updateTasks, setProcessAlive, appendData, setPrInfo, addNotification, setAwaitingCommitResponse])
 }

@@ -228,6 +228,10 @@ export function registerIpcHandlers(): void {
     return githubManager.mergePr(prUrl)
   })
 
+  ipcMain.handle(IPC.GITHUB_CLOSE_PR, async (_event, prUrl: string) => {
+    return githubManager.closePr(prUrl)
+  })
+
   ipcMain.handle(IPC.GITHUB_GET_PR_DIFF, async (_event, prUrl: string) => {
     return githubManager.getPrDiff(prUrl)
   })
