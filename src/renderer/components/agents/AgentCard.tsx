@@ -113,6 +113,7 @@ export function AgentCard({ agent, onStop, onRemove, onOpenTerminal, onRerun }: 
                 prUrl={agent.detectedPrUrl}
                 prInfo={prInfo}
                 agentId={agent.id}
+                agentStatus={agent.status}
                 onMerged={() => updateStatus(agent.id, 'done')}
               />
             ) : agent.awaitingCommitResponse && (

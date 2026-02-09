@@ -224,12 +224,26 @@ export function registerIpcHandlers(): void {
     return githubManager.getProjectStatus(cwd)
   })
 
-  ipcMain.handle(IPC.GITHUB_MERGE_PR, async (_event, prUrl: string) => {
-    return githubManager.mergePr(prUrl)
+  ipcMain.handle(IPC.GITHUB_APPROVE_PR, async (_event, prUrl: string, agentId: string) => {
+    try {
+      const agent = agentProcessManager.getAgentState(agentId)
+      const cwd = agent?.cwd
+      return await githubManager.approvePr(prUrl, cwd)
+    } catch (err) {
+      console.error('Error approving PR:', err)
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+    }
   })
 
-  ipcMain.handle(IPC.GITHUB_CLOSE_PR, async (_event, prUrl: string) => {
-    return githubManager.closePr(prUrl)
+  ipcMain.handle(IPC.GITHUB_DECLINE_PR, async (_event, prUrl: string, agentId: string) => {
+    try {
+      const agent = agentProcessManager.getAgentState(agentId)
+      const cwd = agent?.cwd
+      return await githubManager.declinePr(prUrl, cwd)
+    } catch (err) {
+      console.error('Error declining PR:', err)
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+    }
   })
 
   ipcMain.handle(IPC.GITHUB_GET_PR_DIFF, async (_event, prUrl: string) => {

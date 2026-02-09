@@ -1,10 +1,10 @@
 import { BrowserWindow } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { PrInfo, GhAuthStatus, GitHubProjectStatus, MergeResult } from '@shared/github-types'
-import { ghExec, isGhAvailable } from './gh-cli'
+import { ghExec, gitExec, isGhAvailable } from './gh-cli'
 import { detectGitRemote } from './git-remote'
 
-const POLL_INTERVAL = 60_000 // Poll every 60 seconds instead of 30 to reduce API calls
+const POLL_INTERVAL = 120_000 // Poll every 2 minutes to reduce API calls and avoid rate limits
 
 interface PollingEntry {
   agentId: string
@@ -106,44 +106,87 @@ export class GitHubManager {
     }
   }
 
-  async mergePr(prUrl: string): Promise<MergeResult> {
-    // Retry up to 3 times with delay for rate limiting
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const result = await ghExec(['pr', 'merge', prUrl, '--squash', '--delete-branch'])
-      if (result.exitCode === 0) {
-        return { success: true }
+  async approvePr(prUrl: string, cwd?: string): Promise<MergeResult> {
+    // Stop ALL polling to avoid rate limit conflicts
+    this.stopAllPolling()
+
+    if (!cwd) {
+      return { success: false, error: 'No working directory available' }
+    }
+
+    try {
+      // Step 1: Get the branch name from the PR
+      const prInfoResult = await ghExec(['pr', 'view', prUrl, '--json', 'headRefName'])
+      if (prInfoResult.exitCode !== 0) {
+        return { success: false, error: 'Failed to get PR info: ' + prInfoResult.stderr.trim() }
       }
-      const error = result.stderr.trim()
-      // If rate limited, wait and retry
-      if (error.includes('429') || error.includes('throttl')) {
-        if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, 5000 * attempt)) // 5s, 10s delays
-          continue
+      const prData = JSON.parse(prInfoResult.stdout)
+      const branchName = prData.headRefName
+
+      // Step 2: Fetch latest from origin
+      const fetchResult = await gitExec(['fetch', 'origin'], cwd)
+      if (fetchResult.exitCode !== 0) {
+        return { success: false, error: 'Failed to fetch: ' + fetchResult.stderr.trim() }
+      }
+
+      // Step 3: Checkout main branch
+      const checkoutResult = await gitExec(['checkout', 'main'], cwd)
+      if (checkoutResult.exitCode !== 0) {
+        // Try 'master' if 'main' doesn't exist
+        const checkoutMaster = await gitExec(['checkout', 'master'], cwd)
+        if (checkoutMaster.exitCode !== 0) {
+          return { success: false, error: 'Failed to checkout main branch: ' + checkoutResult.stderr.trim() }
         }
       }
-      return { success: false, error: error || 'Merge failed' }
+
+      // Step 4: Pull latest changes
+      const pullResult = await gitExec(['pull', 'origin'], cwd)
+      if (pullResult.exitCode !== 0) {
+        return { success: false, error: 'Failed to pull: ' + pullResult.stderr.trim() }
+      }
+
+      // Step 5: Merge the PR branch
+      const mergeResult = await gitExec(['merge', branchName, '--no-edit'], cwd)
+      if (mergeResult.exitCode !== 0) {
+        return { success: false, error: 'Failed to merge: ' + mergeResult.stderr.trim() }
+      }
+
+      // Step 6: Push to origin
+      const pushResult = await gitExec(['push', 'origin'], cwd)
+      if (pushResult.exitCode !== 0) {
+        return { success: false, error: 'Failed to push: ' + pushResult.stderr.trim() }
+      }
+
+      // Step 7: Delete the branch locally and remotely
+      await gitExec(['branch', '-d', branchName], cwd)
+      await gitExec(['push', 'origin', '--delete', branchName], cwd)
+
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
     }
-    return { success: false, error: 'Merge failed after retries' }
   }
 
-  async closePr(prUrl: string): Promise<MergeResult> {
-    // Retry up to 3 times with delay for rate limiting
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const result = await ghExec(['pr', 'close', prUrl, '--delete-branch'])
-      if (result.exitCode === 0) {
-        return { success: true }
-      }
-      const error = result.stderr.trim()
-      // If rate limited, wait and retry
-      if (error.includes('429') || error.includes('throttl')) {
-        if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, 5000 * attempt)) // 5s, 10s delays
-          continue
-        }
-      }
-      return { success: false, error: error || 'Failed to close PR' }
+  async declinePr(prUrl: string, _cwd?: string): Promise<MergeResult> {
+    // Stop polling to avoid rate limit conflicts
+    this.stopPollingByUrl(prUrl)
+    await new Promise((r) => setTimeout(r, 500))
+
+    const result = await ghExec(['pr', 'close', prUrl])
+    if (result.exitCode === 0) {
+      return { success: true }
     }
-    return { success: false, error: 'Close failed after retries' }
+    return { success: false, error: result.stderr.trim() || 'Failed to decline PR' }
+  }
+
+  private stopPollingByUrl(prUrl: string): void {
+    for (const [agentId, entry] of this.polling.entries()) {
+      if (entry.prUrl === prUrl) {
+        clearInterval(entry.timer)
+        this.polling.delete(agentId)
+        break
+      }
+    }
   }
 
   async getPrDiff(prUrl: string): Promise<string | null> {

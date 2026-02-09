@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { PrInfo } from '@shared/github-types'
+import type { AgentStatus } from '@shared/agent-types'
 import { PrDiffModal } from './PrDiffModal'
 
 interface PrStatusSectionProps {
   prUrl: string
   prInfo?: PrInfo
   agentId: string
+  agentStatus?: AgentStatus
   onMerged?: () => void
 }
 
@@ -28,47 +30,56 @@ const REVIEW_BADGE: Record<string, { label: string; className: string }> = {
   REVIEW_REQUIRED: { label: 'Review', className: 'bg-yellow-500/20 text-yellow-400' }
 }
 
-export function PrStatusSection({ prUrl, prInfo, agentId, onMerged }: PrStatusSectionProps): JSX.Element {
-  const [merging, setMerging] = useState(false)
+export function PrStatusSection({ prUrl, prInfo, agentId, agentStatus, onMerged }: PrStatusSectionProps): JSX.Element {
+  const [approving, setApproving] = useState(false)
   const [declining, setDeclining] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [showDiff, setShowDiff] = useState(false)
 
   const handleApprove = async (): Promise<void> => {
-    setMerging(true)
+    setApproving(true)
     setActionError(null)
-    const result = await window.api.mergePr(prUrl)
-    setMerging(false)
-    if (result.success) {
-      onMerged?.()
-    } else {
-      setActionError(result.error ?? 'Merge failed')
+    try {
+      const result = await window.api.approvePr(prUrl, agentId)
+      if (result.success) {
+        onMerged?.()
+      } else {
+        setActionError(result.error ?? 'Failed to approve')
+        setTimeout(() => setActionError(null), 5000)
+      }
+    } catch (err) {
+      console.error('Approve error:', err)
+      setActionError(err instanceof Error ? err.message : 'Failed to approve')
       setTimeout(() => setActionError(null), 5000)
+    } finally {
+      setApproving(false)
     }
   }
 
   const handleDecline = async (): Promise<void> => {
     setDeclining(true)
     setActionError(null)
-    const result = await window.api.closePr(prUrl)
-    setDeclining(false)
-    if (!result.success) {
-      setActionError(result.error ?? 'Failed to close PR')
+    try {
+      const result = await window.api.declinePr(prUrl, agentId)
+      if (result.success) {
+        onMerged?.()
+      } else {
+        setActionError(result.error ?? 'Failed to decline PR')
+        setTimeout(() => setActionError(null), 5000)
+      }
+    } catch (err) {
+      console.error('Decline PR error:', err)
+      setActionError(err instanceof Error ? err.message : 'Failed to decline PR')
       setTimeout(() => setActionError(null), 5000)
+    } finally {
+      setDeclining(false)
     }
   }
 
   const state = prInfo ? (STATE_BADGE[prInfo.state] ?? STATE_BADGE.OPEN) : null
   const checks = prInfo ? (CHECKS_BADGE[prInfo.checksStatus] ?? CHECKS_BADGE.UNKNOWN) : null
   const review = prInfo?.reviewDecision ? REVIEW_BADGE[prInfo.reviewDecision] : null
-
-  const canMerge = prInfo
-    ? prInfo.state === 'OPEN' &&
-      prInfo.mergeable !== 'CONFLICTING' &&
-      prInfo.checksStatus !== 'FAILING'
-    : false
-
-  const isOpen = !prInfo || prInfo.state === 'OPEN'
+  const isOpen = (!prInfo || prInfo.state === 'OPEN') && agentStatus !== 'done'
 
   return (
     <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
@@ -116,16 +127,16 @@ export function PrStatusSection({ prUrl, prInfo, agentId, onMerged }: PrStatusSe
         <div className="flex items-center gap-1 pt-0.5">
           <button
             onClick={handleApprove}
-            disabled={!canMerge || merging || declining}
-            title={!prInfo ? 'Waiting for PR info...' : !canMerge ? 'Cannot merge' : 'Merge PR'}
+            disabled={!prInfo || approving || declining}
+            title={!prInfo ? 'Waiting for PR info...' : 'Merge PR'}
             className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {merging ? 'Approving...' : 'Approve'}
+            {approving ? 'Approving...' : 'Approve'}
           </button>
           <button
             onClick={handleDecline}
-            disabled={!prInfo || merging || declining}
-            title={!prInfo ? 'Waiting for PR info...' : 'Close PR without merging'}
+            disabled={!prInfo || approving || declining}
+            title={!prInfo ? 'Waiting for PR info...' : 'Close PR without approving'}
             className="px-1.5 py-0.5 text-[8px] rounded transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {declining ? 'Declining...' : 'Decline'}

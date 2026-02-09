@@ -82,8 +82,8 @@ export const IPC = {
   GITHUB_GET_PR_INFO: 'github:get-pr-info',
   GITHUB_LIST_PRS: 'github:list-prs',
   GITHUB_GET_PROJECT_STATUS: 'github:get-project-status',
-  GITHUB_MERGE_PR: 'github:merge-pr',
-  GITHUB_CLOSE_PR: 'github:close-pr',
+  GITHUB_APPROVE_PR: 'github:approve-pr',
+  GITHUB_DECLINE_PR: 'github:decline-pr',
   GITHUB_GET_PR_DIFF: 'github:get-pr-diff',
   GITHUB_PR_INFO_UPDATED: 'github:pr-info-updated',
 

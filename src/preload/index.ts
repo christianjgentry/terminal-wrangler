@@ -285,10 +285,10 @@ const api = {
     ipcRenderer.invoke(IPC.GITHUB_LIST_PRS, cwd),
   getGithubProjectStatus: (cwd: string): Promise<GitHubProjectStatus> =>
     ipcRenderer.invoke(IPC.GITHUB_GET_PROJECT_STATUS, cwd),
-  mergePr: (prUrl: string): Promise<MergeResult> =>
-    ipcRenderer.invoke(IPC.GITHUB_MERGE_PR, prUrl),
-  closePr: (prUrl: string): Promise<MergeResult> =>
-    ipcRenderer.invoke(IPC.GITHUB_CLOSE_PR, prUrl),
+  approvePr: (prUrl: string, agentId: string): Promise<MergeResult> =>
+    ipcRenderer.invoke(IPC.GITHUB_APPROVE_PR, prUrl, agentId),
+  declinePr: (prUrl: string, agentId: string): Promise<MergeResult> =>
+    ipcRenderer.invoke(IPC.GITHUB_DECLINE_PR, prUrl, agentId),
   getPrDiff: (prUrl: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC.GITHUB_GET_PR_DIFF, prUrl),
   onGithubPrInfoUpdated: (

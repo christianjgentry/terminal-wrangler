@@ -92,6 +92,7 @@ export class StatusDetector {
   private lastInputPrompt: string | null = null
   private inputNeededCooldown = false
   private idleTimer: NodeJS.Timeout | null = null
+  private idleDoneTimer: NodeJS.Timeout | null = null
   private lastDataTime = 0
   private commitQuestionDetected = false
 
@@ -132,11 +133,48 @@ export class StatusDetector {
     // Detect commit-related questions (for no-branch mode)
     this.detectCommitQuestion(recent)
 
+    // Detect Jira ticket creation - move to done immediately
+    if (this.detectJiraTicketCreated(recent)) {
+      this.setStatus('done')
+      return
+    }
+
     // Determine status in priority order
     const detected = this.detectStatus(recent)
     if (detected && detected !== this.currentStatus) {
       this.transitionTo(detected)
     }
+
+    // Check for idle completion (building done, no PR, no prompt)
+    this.checkIdleCompletion()
+  }
+
+  private detectJiraTicketCreated(recent: string): boolean {
+    // Pattern: "Created Jira ticket XXX-123:"
+    return /Created Jira ticket [A-Z]+-\d+:/i.test(recent)
+  }
+
+  private checkIdleCompletion(): void {
+    // Clear existing idle done timer
+    if (this.idleDoneTimer) {
+      clearTimeout(this.idleDoneTimer)
+      this.idleDoneTimer = null
+    }
+
+    // Only check if in building status
+    if (this.currentStatus !== 'building') return
+    if (this._isStopped) return
+
+    // After 10 seconds of no activity, move to done if no PR
+    this.idleDoneTimer = setTimeout(() => {
+      // Re-check conditions
+      if (this.currentStatus !== 'building') return
+      if (this._isStopped) return
+      if (this.detectedPrUrls.size > 0) return
+
+      // No activity for 10 seconds, no PR - we're done
+      this.setStatus('done')
+    }, 10000)
   }
 
   getCurrentStatus(): AgentStatus {
@@ -147,7 +185,15 @@ export class StatusDetector {
     this._isStopped = true
     this.clearDebounce()
     this.clearInputNeeded()
+    this.clearIdleDone()
     this.setStatus('stopped')
+  }
+
+  private clearIdleDone(): void {
+    if (this.idleDoneTimer) {
+      clearTimeout(this.idleDoneTimer)
+      this.idleDoneTimer = null
+    }
   }
 
   setExited(exitCode: number | null): void {
@@ -160,8 +206,10 @@ export class StatusDetector {
       // If a PR was detected, ensure pr_ready status
       if (this.detectedPrUrls.size > 0) {
         this.setStatus('pr_ready')
+      } else {
+        // No PR detected, move to done
+        this.setStatus('done')
       }
-      // Otherwise keep current status — done is set via Mark Done or PR merge
     } else {
       this.setStatus('error')
     }
