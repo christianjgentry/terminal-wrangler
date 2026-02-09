@@ -32,10 +32,14 @@ export function AgentBoard(): JSX.Element {
     setStopConfirmAgentId(agentId)
   }, [])
 
-  const handleConfirmStop = useCallback(async () => {
+  const handleConfirmStop = useCallback(() => {
     if (stopConfirmAgentId) {
-      await window.api.stopAgent(stopConfirmAgentId)
+      // Close dialog immediately, then stop agent and mark as done
+      const agentId = stopConfirmAgentId
       setStopConfirmAgentId(null)
+      window.api.stopAgent(agentId).then(() => {
+        window.api.markAgentDone(agentId)
+      })
     }
   }, [stopConfirmAgentId])
 

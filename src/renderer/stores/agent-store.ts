@@ -17,6 +17,7 @@ interface AgentState {
   setSelectedAgentId: (id: string | null) => void
   getAgentsByStatus: (status: AgentStatus) => AgentInfo[]
   setAgents: (agents: AgentInfo[]) => void
+  setAwaitingCommitResponse: (agentId: string, awaiting: boolean) => void
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -134,5 +135,17 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   setAgents: (agents) =>
     set({
       agents: Object.fromEntries(agents.map((a) => [a.id, a]))
+    }),
+
+  setAwaitingCommitResponse: (agentId, awaiting) =>
+    set((state) => {
+      const agent = state.agents[agentId]
+      if (!agent) return state
+      return {
+        agents: {
+          ...state.agents,
+          [agentId]: { ...agent, awaitingCommitResponse: awaiting }
+        }
+      }
     })
 }))

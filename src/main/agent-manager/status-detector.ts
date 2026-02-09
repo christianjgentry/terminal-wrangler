@@ -9,136 +9,83 @@ interface StatusDetectorEvents {
   onTasksChanged: (tasks: AgentTask[]) => void
   onPlanDetected: (planFilePath: string) => void
   onInputNeeded: (prompt: string) => void
+  onCommitQuestionDetected: () => void // Fired when Claude asks about committing (no-branch mode)
 }
 
 const CONTEXT_BUFFER_SIZE = 10 * 1024 // 10KB rolling context
 const RECENT_WINDOW = 1500 // chars to check for pattern matching
 
-const FORWARD_DEBOUNCE_MS = 1500 // planning→building
-const BACKWARD_DEBOUNCE_MS = 4000 // building→planning
-const BUILDING_STICKINESS_MS = 12000 // stay "building" for 12s after last build tool
-
 const TERMINAL_STATUSES: Set<AgentStatus> = new Set(['done', 'error', 'stopped'])
-
-// Tool categories for per-chunk activity tracking
-const PLANNING_TOOLS = new Set([
-  'Read',
-  'Glob',
-  'Grep',
-  'Ls',
-  'WebSearch',
-  'WebFetch',
-  'EnterPlanMode',
-  'AskUserQuestion',
-  'Task'
-])
-
-const BUILDING_TOOLS = new Set([
-  'Write',
-  'Edit',
-  'MultiEdit',
-  'Bash',
-  'NotebookEdit',
-  'ExitPlanMode',
-  'Skill'
-])
-
-// Regex to detect tool invocations in output chunks
-const TOOL_REGEX =
-  /\b(Read|Write|Edit|MultiEdit|Glob|Grep|Bash|WebSearch|WebFetch|Ls|NotebookEdit|EnterPlanMode|ExitPlanMode|AskUserQuestion|Task|Skill)[\s(]/g
 
 // --- Pattern helpers ---
 
-function matchesBuilding(text: string): boolean {
-  return (
-    // Tool invocations: "Write(" or "Write src/..."
-    /\b(?:Write|Edit|MultiEdit)[\s(]/.test(text) ||
-    // Past-tense tool results
-    /\b(?:Wrote to|Updated|Created|Edited|Modified)\s/.test(text) ||
-    // Bash tool
-    /\bBash[\s(]/.test(text) ||
-    // Notebook edits
-    /\bNotebookEdit[\s(]/.test(text) ||
-    // Exit plan mode (done planning, about to build)
-    /\bExitPlanMode\b/.test(text) ||
-    // Executing a skill
-    /\bSkill[\s(]/.test(text) ||
-    // Package manager commands
-    /\b(?:npm|yarn|pnpm)\s+(?:install|run|test|build)\b/.test(text) ||
-    // Git operations
-    /\bgit\s+(?:add|commit|push)\b/.test(text) ||
-    // Test runners
-    /\b(?:Running|Ran)\b.*\btest/i.test(text) ||
-    /\b(?:pytest|jest|vitest|mocha|cargo\s+test)\b/.test(text) ||
-    // File creation
-    /Creating file/i.test(text)
-  )
-}
+// Planning = thinking/reading. Returns true if the CURRENT activity is planning.
+function isThinking(text: string): boolean {
+  // Get just the last ~300 chars to see current activity
+  const recent = text.slice(-300)
 
-function matchesPlanning(text: string): boolean {
   return (
     // Read/search tool invocations
-    /\b(?:Read|Glob|Grep|Ls|WebSearch|WebFetch)[\s(]/.test(text) ||
-    // Explicit plan mode entry
-    /\bEnterPlanMode\b/.test(text) ||
-    // Asking for clarification
-    /\bAskUserQuestion\b/.test(text) ||
-    // Spawning subagent (coordinating)
-    /\bTask[\s(]/.test(text) ||
-    // Descriptive planning verbs
-    /\b(?:Searching|Analyzing|Reading|Exploring|Examining)\b/.test(text) ||
+    /\b(?:Read|Glob|Grep|Ls|WebSearch|WebFetch)\b/i.test(recent) ||
+    // Thinking/reasoning
+    /\b(?:Thinking|Reasoning|Analyzing|Exploring|Examining|Investigating)\b/i.test(recent) ||
+    // Claude describing what it will do (planning phase)
+    /\b(?:I'll|Let me|I will|I need to|I'm going to)\s+(?:read|search|look|check|find|explore|examine|analyze|understand|investigate)/i.test(recent) ||
     // Explicit plan
-    /\bPlan:/i.test(text) ||
-    // Thinking/reasoning indicators
-    /\b(?:Thinking|Reasoning)\b/.test(text)
+    /\bPlan:/i.test(recent)
   )
 }
 
-/** Low-confidence patterns only used to escape idle state */
-function matchesEarlyActivity(text: string): boolean {
-  return (
-    // Claude Code's bullet/box drawing chars
-    /[╭⏺●]/.test(text) ||
-    // Common Claude opening phrases
-    /\bI'll\b|\bLet me\b|\bI need to\b/i.test(text)
-  )
-}
 
 // Patterns that indicate Claude Code is waiting for user input at the prompt
 function matchesWaitingAtPrompt(text: string): { waiting: boolean; prompt: string } {
-  // Get the last ~500 chars to check for prompt patterns
-  const tail = text.slice(-500)
+  // Get the last ~1000 chars to check for prompt patterns
+  const tail = text.slice(-1000)
 
-  // Claude Code prompt patterns - waiting for user input
-  // Look for the ">" prompt or question patterns at the very end
+  // Check if we're at an input prompt - Claude Code uses ❯ or >
+  // The prompt character should be near the end (within last 20 chars)
+  const endChars = tail.slice(-20)
+  const hasInputPrompt = /[❯>]/.test(endChars)
 
-  // Pattern: ends with "> " (Claude Code's input prompt)
-  if (/>\s*$/.test(tail)) {
-    // Check if there's a question or context before the prompt
-    const contextMatch = tail.match(/([^\n]{0,100})\s*>\s*$/)
-    const context = contextMatch ? contextMatch[1].trim() : ''
-    return { waiting: true, prompt: context || 'Waiting for input' }
+  if (!hasInputPrompt) {
+    return { waiting: false, prompt: '' }
   }
 
-  // Pattern: ends with a question mark followed by whitespace/newline
-  const questionEnd = tail.match(/([^\n]{10,150}\?)\s*$/)
-  if (questionEnd) {
-    return { waiting: true, prompt: questionEnd[1].trim() }
+  // We're at an input prompt - now find what question/context to show
+
+  // Look for the last question in the output
+  const questions = tail.match(/[^.!?\n]{10,200}\?/g)
+  if (questions && questions.length > 0) {
+    // Return the last question found
+    return { waiting: true, prompt: questions[questions.length - 1].trim() }
   }
 
-  // Pattern: "(y/n)" or "[Y/n]" style prompts
-  const ynPrompt = tail.match(/(\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\))\s*:?\s*$/)
-  if (ynPrompt) {
-    const contextMatch = tail.match(/([^\n]{0,80})\s*(?:\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\))\s*:?\s*$/)
-    return { waiting: true, prompt: contextMatch ? contextMatch[1].trim() : 'Yes/No question' }
+  // Check for numbered options (1., 2., 3. etc.) - indicates choices presented
+  const hasNumberedOptions = /\n\s*1\.\s+.+\n\s*2\.\s+/m.test(tail)
+  if (hasNumberedOptions) {
+    // Try to find a question or prompt before the options
+    const beforeOptions = tail.match(/([^\n]{10,100})\s*\n\s*1\./m)
+    if (beforeOptions) {
+      return { waiting: true, prompt: beforeOptions[1].trim() }
+    }
+    return { waiting: true, prompt: 'Choose an option' }
   }
 
-  // Pattern: "Press Enter" or "Type" prompts
-  if (/(?:press enter|type .{1,30}|enter .{1,30})\s*:?\s*$/i.test(tail)) {
-    return { waiting: true, prompt: 'Waiting for input' }
+  // Look for common question phrases even without ?
+  const phraseMatch = tail.match(
+    /((?:would you like|do you want|should i|shall i|let me know|please (?:provide|specify|confirm)|what would you)[^.!?\n]{5,100})/i
+  )
+  if (phraseMatch) {
+    return { waiting: true, prompt: phraseMatch[1].trim() }
   }
 
-  return { waiting: false, prompt: '' }
+  // Check for y/n prompts
+  if (/\[[YyNn]\/[YyNn]\]|\([YyNn]\/[YyNn]\)/.test(tail)) {
+    return { waiting: true, prompt: 'Yes/No question' }
+  }
+
+  // Default - we're at a prompt but couldn't extract context
+  return { waiting: true, prompt: 'Waiting for input' }
 }
 
 export class StatusDetector {
@@ -159,11 +106,9 @@ export class StatusDetector {
   private lastInputPrompt: string | null = null
   private inputNeededCooldown = false
   private idleTimer: NodeJS.Timeout | null = null
+  private idleDoneTimer: NodeJS.Timeout | null = null
   private lastDataTime = 0
-  // Activity-based tool tracking
-  private lastBuildingTime = 0
-  private lastPlanningTime = 0
-  private lastToolCategory: 'planning' | 'building' | null = null
+  private commitQuestionDetected = false
 
   constructor(events: StatusDetectorEvents) {
     this.events = events
@@ -199,14 +144,57 @@ export class StatusDetector {
     // Detect if input is needed
     this.detectInputNeeded(recent)
 
-    // Scan this chunk for tool invocations (before window-based detection)
-    this.detectToolInChunk(cleaned)
+    // Detect commit-related questions (for no-branch mode)
+    this.detectCommitQuestion(recent)
+
+    // Detect Jira ticket creation - move to done immediately
+    if (this.detectJiraTicketCreated(recent)) {
+      this.setStatus('done')
+      return
+    }
 
     // Determine status in priority order
     const detected = this.detectStatus(recent)
     if (detected && detected !== this.currentStatus) {
       this.transitionTo(detected)
     }
+
+    // Check for idle completion (building done, no PR, no prompt)
+    this.checkIdleCompletion()
+  }
+
+  private detectJiraTicketCreated(recent: string): boolean {
+    // Simple check: Any Atlassian/Jira browse URL means a ticket was created/linked
+    // Format: https://xxx.atlassian.net/browse/XXX-123
+    if (/https:\/\/[^\s]+\.atlassian\.net\/browse\/[A-Z]+-\d+/i.test(recent)) return true
+
+    // Also check for zeal-it or other common Jira URL patterns
+    if (/https:\/\/[^\s]+\/browse\/[A-Z]+-\d+/i.test(recent)) return true
+
+    return false
+  }
+
+  private checkIdleCompletion(): void {
+    // Clear existing idle done timer
+    if (this.idleDoneTimer) {
+      clearTimeout(this.idleDoneTimer)
+      this.idleDoneTimer = null
+    }
+
+    // Only check if in building status
+    if (this.currentStatus !== 'building') return
+    if (this._isStopped) return
+
+    // After 10 seconds of no activity, move to done if no PR
+    this.idleDoneTimer = setTimeout(() => {
+      // Re-check conditions
+      if (this.currentStatus !== 'building') return
+      if (this._isStopped) return
+      if (this.detectedPrUrls.size > 0) return
+
+      // No activity for 10 seconds, no PR - we're done
+      this.setStatus('done')
+    }, 10000)
   }
 
   getCurrentStatus(): AgentStatus {
@@ -217,7 +205,15 @@ export class StatusDetector {
     this._isStopped = true
     this.clearDebounce()
     this.clearInputNeeded()
+    this.clearIdleDone()
     this.setStatus('stopped')
+  }
+
+  private clearIdleDone(): void {
+    if (this.idleDoneTimer) {
+      clearTimeout(this.idleDoneTimer)
+      this.idleDoneTimer = null
+    }
   }
 
   setExited(exitCode: number | null): void {
@@ -230,68 +226,35 @@ export class StatusDetector {
       // If a PR was detected, ensure pr_ready status
       if (this.detectedPrUrls.size > 0) {
         this.setStatus('pr_ready')
+      } else {
+        // No PR detected, move to done
+        this.setStatus('done')
       }
-      // Otherwise keep current status — done is set via Mark Done or PR merge
     } else {
       this.setStatus('error')
     }
   }
 
-  /** Scan each incoming chunk for tool invocations and update timestamps */
-  private detectToolInChunk(cleaned: string): void {
-    TOOL_REGEX.lastIndex = 0
-    let lastMatch: string | null = null
-    let m: RegExpExecArray | null
-    while ((m = TOOL_REGEX.exec(cleaned)) !== null) {
-      lastMatch = m[1]
-    }
-    if (!lastMatch) return
-
-    const now = Date.now()
-    if (BUILDING_TOOLS.has(lastMatch)) {
-      this.lastToolCategory = 'building'
-      this.lastBuildingTime = now
-    } else if (PLANNING_TOOLS.has(lastMatch)) {
-      this.lastToolCategory = 'planning'
-      this.lastPlanningTime = now
-    }
-  }
-
   private detectStatus(recent: string): AgentStatus | null {
-    // Priority 1: PR Ready
-    if (
-      /github\.com\/[^\s]+\/pull\/\d+/.test(recent) ||
-      /gh pr create/.test(recent) ||
-      /Creating pull request/i.test(recent) ||
-      /git push.*origin/.test(recent)
-    ) {
+    // Priority 1: PR Ready - trigger on actual PR URL or PR creation URL
+    // Matches: /pull/123 (existing PR) or /pull/new/branch-name (ready to create PR)
+    if (/https:\/\/github\.com\/[^\s]+\/pull\/(\d+|new\/)/.test(recent)) {
       return 'pr_ready'
     }
 
-    // Priority 2: Tool-based detection (primary signal)
-    if (this.lastToolCategory === 'building') {
-      return 'building'
-    }
-    if (this.lastToolCategory === 'planning') {
-      const timeSinceBuilding = Date.now() - this.lastBuildingTime
-      if (this.lastBuildingTime > 0 && timeSinceBuilding < BUILDING_STICKINESS_MS) {
-        // Planning tools during building stickiness window → stay building
-        return 'building'
-      }
+    // If idle, start with planning on first activity
+    if (this.currentStatus === 'idle' && this.contextBuffer.length > 200) {
       return 'planning'
     }
 
-    // Priority 3: Fallback window-based pattern matching
-    if (matchesBuilding(recent)) {
-      return 'building'
-    }
-    if (matchesPlanning(recent)) {
+    // Simple logic: thinking = planning, everything else = building
+    if (isThinking(this.contextBuffer)) {
       return 'planning'
     }
 
-    // Priority 4: Early activity detection (only from idle)
-    if (this.currentStatus === 'idle' && matchesEarlyActivity(recent)) {
-      return 'planning'
+    // If we have activity and not thinking, we're building
+    if (this.contextBuffer.length > 200) {
+      return 'building'
     }
 
     return null
@@ -305,63 +268,38 @@ export class StatusDetector {
       return
     }
 
-    // No backward transitions FROM terminal or pr_ready states
-    if (TERMINAL_STATUSES.has(this.currentStatus) || this.currentStatus === 'pr_ready') {
-      // Only allow pr_ready if currently in active zone
+    // pr_ready is sticky - once we have a PR, stay there until terminal
+    if (this.currentStatus === 'pr_ready') {
       return
     }
 
-    // pr_ready is immediate and sticky (no backward from it)
-    if (newStatus === 'pr_ready') {
+    // Same status - no change needed
+    if (newStatus === this.currentStatus) {
+      return
+    }
+
+    // Immediate transition from idle
+    if (this.currentStatus === 'idle') {
       this.clearDebounce()
       this.setStatus(newStatus)
       return
     }
 
-    // idle → planning: immediate
-    if (this.currentStatus === 'idle' && newStatus === 'planning') {
-      this.clearDebounce()
-      this.setStatus(newStatus)
-      return
-    }
-
-    // idle → building: force through planning first, then debounce to building
-    if (this.currentStatus === 'idle' && newStatus === 'building') {
-      this.setStatus('planning')
-      this.pendingStatus = newStatus
-      this.debounceTimer = setTimeout(() => {
-        if (this.pendingStatus) {
-          this.setStatus(this.pendingStatus)
-          this.pendingStatus = null
-        }
-      }, FORWARD_DEBOUNCE_MS)
-      return
-    }
-
-    // Active zone: bidirectional transitions between planning ↔ building
-    const isForward =
-      (this.currentStatus === 'planning' && newStatus === 'building') ||
-      (this.currentStatus === 'building' && newStatus === 'pr_ready')
-    const isBackward = this.currentStatus === 'building' && newStatus === 'planning'
-
-    const debounceMs = isBackward ? BACKWARD_DEBOUNCE_MS : FORWARD_DEBOUNCE_MS
-
-    if (!isForward && !isBackward) {
-      // Same status or unexpected combination — ignore
-      return
-    }
-
-    // Don't restart debounce if already pending the same status
+    // Debounce transitions between planning/building to avoid flicker
     if (this.pendingStatus === newStatus) return
 
     this.clearDebounce()
     this.pendingStatus = newStatus
+
+    // Short debounce for planning→building, longer for building→planning
+    const debounceTime = newStatus === 'building' ? 500 : 1000
+
     this.debounceTimer = setTimeout(() => {
       if (this.pendingStatus) {
         this.setStatus(this.pendingStatus)
         this.pendingStatus = null
       }
-    }, debounceMs)
+    }, debounceTime)
   }
 
   private setStatus(status: AgentStatus): void {
@@ -418,7 +356,8 @@ export class StatusDetector {
   }
 
   private detectPrUrls(recent: string): void {
-    const prMatch = recent.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/)
+    // Match both existing PRs (/pull/123) and PR creation URLs (/pull/new/branch)
+    const prMatch = recent.match(/https:\/\/github\.com\/[^\s]+\/pull\/(?:\d+|new\/[^\s]+)/)
     if (prMatch) {
       const url = prMatch[0]
       if (!this.detectedPrUrls.has(url)) {
@@ -450,7 +389,7 @@ export class StatusDetector {
       clearTimeout(this.idleTimer)
     }
 
-    // After 1.5 seconds of no new data, check if waiting at prompt
+    // After 1 second of no new data, check if waiting at prompt
     this.idleTimer = setTimeout(() => {
       if (this._isStopped || this.inputNeededCooldown) return
 
@@ -464,9 +403,9 @@ export class StatusDetector {
         setTimeout(() => {
           this.inputNeededCooldown = false
           this.lastInputPrompt = null // Reset so same prompt can trigger again
-        }, 10000) // 10 second cooldown between notifications
+        }, 5000) // 5 second cooldown between notifications
       }
-    }, 1500) // Wait 1.5 seconds of idle before checking
+    }, 1000) // Wait 1 second of idle before checking
   }
 
   clearInputNeeded(): void {
@@ -476,6 +415,28 @@ export class StatusDetector {
       clearTimeout(this.idleTimer)
       this.idleTimer = null
     }
+  }
+
+  private detectCommitQuestion(recent: string): void {
+    // Only detect once and only when in building status
+    if (this.commitQuestionDetected || this.currentStatus !== 'building') return
+
+    // Look for commit-related questions
+    const hasCommitQuestion =
+      /(?:commit|push).*\?/i.test(recent) ||
+      /(?:should|would you like|want me to|shall).*(?:commit|push)/i.test(recent) ||
+      /(?:ready to|create a).*commit/i.test(recent) ||
+      /\[Y\/n\].*commit/i.test(recent) ||
+      /\[y\/N\].*commit/i.test(recent)
+
+    if (hasCommitQuestion) {
+      this.commitQuestionDetected = true
+      this.events.onCommitQuestionDetected()
+    }
+  }
+
+  resetCommitQuestionDetected(): void {
+    this.commitQuestionDetected = false
   }
 
   private detectTasks(): void {

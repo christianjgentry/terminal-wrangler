@@ -10,6 +10,7 @@ import { githubManager } from '../github-manager'
 import { detectGitRemote } from '../github-manager/git-remote'
 import { createBranchFromMain } from '../github-manager/git-branch'
 import { generateBranchName } from '@shared/branch-utils'
+import { getJiraCredentials } from '../jira-manager/credentials'
 
 const logger = createLogger('AgentManager')
 
@@ -125,16 +126,20 @@ export class AgentProcessManager {
         if (info) {
           this.broadcastEvent(IPC.AGENT_INPUT_NEEDED, { agentId, agentName: info.name, prompt })
         }
+      },
+      onCommitQuestionDetected: (agentId) => {
+        const info = this.agentInfos.get(agentId)
+        // Only trigger for no-branch mode (when branch is not set)
+        if (info && !info.branch) {
+          info.awaitingCommitResponse = true
+          info.status = 'pr_ready'
+          this.broadcast(IPC.AGENT_STATUS_CHANGED, { agentId, status: 'pr_ready' })
+          this.broadcast(IPC.AGENT_COMMIT_QUESTION, { agentId, agentName: info.name })
+        }
       }
     }
 
-    const agentProcess = new AgentProcess(
-      { id, name: request.name, task: request.task, cwd: request.cwd, files: request.files },
-      events
-    )
-
-    this.agents.set(id, agentProcess)
-
+    // Determine branch first so we can pass it to the agent process
     let branch: string | undefined
     if (request.createBranch) {
       const branchName = request.branchName?.trim() || generateBranchName(request.name)
@@ -142,10 +147,29 @@ export class AgentProcessManager {
         await createBranchFromMain(request.cwd, branchName)
         branch = branchName
       } catch (err) {
-        this.agents.delete(id)
         throw err
       }
     }
+
+    // Get Jira credentials for context injection
+    const jiraCredentials = getJiraCredentials()
+
+    const agentProcess = new AgentProcess(
+      {
+        id,
+        name: request.name,
+        task: request.task,
+        cwd: request.cwd,
+        files: request.files,
+        planMode: request.planMode,
+        branch,
+        jiraIssueKey: request.jiraIssueKey,
+        jiraCloudUrl: jiraCredentials?.cloudUrl
+      },
+      events
+    )
+
+    this.agents.set(id, agentProcess)
 
     const gitRemote = await detectGitRemote(request.cwd).catch(() => null)
 
