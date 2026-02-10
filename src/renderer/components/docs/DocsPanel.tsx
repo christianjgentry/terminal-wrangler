@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/app-store'
 import { useDocsStore } from '../../stores/docs-store'
 import { ServiceDocs } from './ServiceDocs'
 import { ScriptList } from './ScriptList'
+import { RandomNameGenerator } from './RandomNameGenerator'
 
 export function DocsPanel(): JSX.Element | null {
   const docsPanelOpen = useAppStore((s) => s.docsPanelOpen)
@@ -84,6 +85,9 @@ export function DocsPanel(): JSX.Element | null {
           &times;
         </button>
       </div>
+
+      {/* Random Name Generator Section */}
+      <RandomNameGenerator />
 
       {/* Content tabs */}
       {docsData && (hasReadme || hasScripts) && (
