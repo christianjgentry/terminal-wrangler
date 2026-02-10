@@ -18,6 +18,7 @@ import type { AddFileArtifactRequest, AddLinkArtifactRequest } from '@shared/dis
 import type { AppSettings, RecentProject } from '@shared/types'
 import type { CreateAgentRequest } from '@shared/agent-types'
 import type { JiraCredentials } from '@shared/jira-types'
+import type { PlanToJiraRequest } from '@shared/planner-types'
 
 export function registerIpcHandlers(): void {
   // ── Dialog ──────────────────────────────────────────
@@ -397,6 +398,40 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.STANDARDS_WRITE_FILE, async (_event, relativePath: string, content: string) => {
     return standardsManager.writeFile(relativePath, content)
+  })
+
+  // ── Planner ──────────────────────────────────────────
+  ipcMain.handle(IPC.PLANNER_SPAWN_AGENT, async (_event, request: PlanToJiraRequest) => {
+    // 1. Load the skill prompt
+    const skillPrompt = await standardsManager.getSkillPrompt()
+
+    // 2. Build discovery context if requested
+    let discoveryText = ''
+    if (request.includeDiscovery && request.projectPath) {
+      const context = await discoveryManager.buildContext(request.projectPath)
+      if (context.promptText) {
+        discoveryText = `\n\n## Discovery Context\n${context.promptText}`
+      }
+    }
+
+    // 3. Build the combined task
+    const projectArg = request.projectKey || ''
+    const task = `${skillPrompt}\n\n$ARGUMENTS: ${projectArg}\n\n## User Feature Request\n${request.featureDescription}${discoveryText}`
+
+    // 4. Get standards file paths for agent context
+    const files = await standardsManager.getAbsolutePaths()
+
+    // 5. Create the agent
+    const cwd = request.projectPath || process.cwd()
+    const shortDesc = request.featureDescription.slice(0, 50) + (request.featureDescription.length > 50 ? '...' : '')
+
+    return agentProcessManager.createAgent({
+      name: `Jira Planner: ${shortDesc}`,
+      task,
+      cwd,
+      files,
+      planMode: true
+    })
   })
 
   // Wire up GitHubManager → AgentProcessManager auto-transition on PR merge
