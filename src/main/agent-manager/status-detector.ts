@@ -1,5 +1,8 @@
 import type { AgentStatus, AgentTask, AgentTaskStatus } from '@shared/agent-types'
 import { cleanTerminalOutput } from '@shared/strip-ansi'
+import { createLogger } from '../lib/logger'
+
+const logger = createLogger('StatusDetector')
 
 interface StatusDetectorEvents {
   onStatusChange: (status: AgentStatus) => void
@@ -236,9 +239,9 @@ export class StatusDetector {
   }
 
   private detectStatus(recent: string): AgentStatus | null {
-    // Priority 1: PR Ready - trigger on actual PR URL or PR creation URL
-    // Matches: /pull/123 (existing PR) or /pull/new/branch-name (ready to create PR)
-    if (/https:\/\/github\.com\/[^\s]+\/pull\/(\d+|new\/)/.test(recent)) {
+    // Priority 1: PR Ready - trigger on GitHub PR URL
+    // Be flexible with protocol prefix since terminal carriage returns can truncate "https://"
+    if (/(?:https?:\/\/)?github\.com\/[^/\s]+\/[^/\s]+\/pull\/(?:\d+|new\/)/.test(recent)) {
       return 'pr_ready'
     }
 
@@ -356,11 +359,29 @@ export class StatusDetector {
   }
 
   private detectPrUrls(recent: string): void {
-    // Match both existing PRs (/pull/123) and PR creation URLs (/pull/new/branch)
-    const prMatch = recent.match(/https:\/\/github\.com\/[^\s]+\/pull\/(?:\d+|new\/[^\s]+)/)
+    // Match GitHub PR URLs - be flexible with the protocol prefix since terminal
+    // carriage return processing can truncate "https://" to "tps://" or similar
+    // Pattern: [optional partial https]github.com/owner/repo/pull/number
+    const prMatch = recent.match(/(?:https?:\/\/)?github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/(\d+)/)
+
     if (prMatch) {
-      const url = prMatch[0]
+      // Reconstruct the full URL
+      const [, owner, repo, prNumber] = prMatch
+      const url = `https://github.com/${owner}/${repo}/pull/${prNumber}`
       if (!this.detectedPrUrls.has(url)) {
+        logger.info(`PR URL detected: ${url}`)
+        this.detectedPrUrls.add(url)
+        this.events.onPrDetected(url)
+      }
+    }
+
+    // Also check for PR creation URLs (/pull/new/branch)
+    const newPrMatch = recent.match(/(?:https?:\/\/)?github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/new\/([^\s]+)/)
+    if (newPrMatch) {
+      const [, owner, repo, branch] = newPrMatch
+      const url = `https://github.com/${owner}/${repo}/pull/new/${branch}`
+      if (!this.detectedPrUrls.has(url)) {
+        logger.info(`PR creation URL detected: ${url}`)
         this.detectedPrUrls.add(url)
         this.events.onPrDetected(url)
       }
